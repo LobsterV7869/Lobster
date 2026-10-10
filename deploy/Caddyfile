@@ -1,26 +1,21 @@
 # Lobster dashboard API — HTTPS reverse proxy for the Oracle Cloud Linux VM.
 #
-# This is what was missing: a stable public HTTPS endpoint in front of the bot's
-# dashboard API (port 3000) instead of a temporary tunnel.
+# Deployed as /etc/caddy/Caddyfile on 147.15.145.250. The hostname uses
+# sslip.io so Let's Encrypt can issue a certificate without owning a domain.
 #
-# Steps:
-#   1. Create a DNS A record (for example api.your-domain.example) pointing at
-#      the VM's public IP address.
-#   2. Open TCP 80 and 443 in the VM's Oracle Cloud Security List / NSG.
-#      Do NOT open port 3000 publicly.
-#   3. Install Caddy, copy this file to /etc/caddy/Caddyfile, and run:
-#        sudo systemctl enable --now caddy
-#      Caddy obtains and renews the TLS certificate automatically.
-#   4. In Lobster's .env set:
-#        DASHBOARD_REDIRECT_URI=https://api.your-domain.example/api/auth/callback
-#        DASHBOARD_ORIGIN=https://your-dashboard-domain.example
-#        DASHBOARD_TRUST_PROXY=true
-#   5. In the Discord Developer Portal add the same redirect URI:
-#        https://api.your-domain.example/api/auth/callback
+# Steps (already completed for this VM):
+#   1. DNS is not needed — 147.15.145.250.sslip.io already resolves to the VM.
+#   2. Caddy is installed and running as a systemd service with this file.
+#      It listens on 80/443 and proxies to the bot API on 127.0.0.1:3000.
+#   3. (PENDING — Oracle Cloud console) add ingress rules for TCP 80 and 443
+#      in the VCN's Security List / NSG, otherwise Let's Encrypt cannot reach
+#      the server and no certificate is issued.
+#   4. (PENDING — Discord Developer Portal) register the redirect URI:
+#        https://147.15.145.250.sslip.io/api/auth/callback
 #
-# Replace api.your-domain.example below with your real API hostname.
+# If you later add a real domain, replace the hostname and set the DNS record.
 
-api.your-domain.example {
+147.15.145.250.sslip.io {
 	encode gzip
 	reverse_proxy 127.0.0.1:3000
 }
