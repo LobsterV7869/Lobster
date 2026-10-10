@@ -20,6 +20,7 @@ const {
 } = require('discord.js');
 const db = require('./utils/database');
 const { createDashboardServer } = require('./dashboard/server');
+const voiceManager = require('./dashboard/voice-manager');
 const { executeCommand } = require('./utils/handler');
 const { stylePayload, styledContext } = require('./utils/command-style');
 const backups = require('./utils/backups');
@@ -323,6 +324,7 @@ client.once('ready', () => {
   } else {
     console.log('Dashboard API is disabled. Configure Discord OAuth and DASHBOARD_* values to enable it.');
   }
+  voiceManager.restore(client).catch(error => console.error('Voice connection restore failed:', error));
   endDueGiveaways().catch(error => console.error('Giveaway recovery failed:', error));
   const runDueBackups = async () => {
     for (const guild of client.guilds.cache.values()) {

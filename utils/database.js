@@ -152,6 +152,8 @@ function defaults(guildId) {
     verificationPanelMessageId: null,
     levelsEnabled: 1,
     levelUpChannel: null,
+    voiceChannel: null,
+    voiceAutoReconnect: false,
     lockedChannels: {}
   };
 }

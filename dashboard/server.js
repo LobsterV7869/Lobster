@@ -9,6 +9,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 const db = require('../utils/database');
+const voiceManager = require('./voice-manager');
 
 const DISCORD_API = 'https://discord.com/api/v10';
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -37,7 +38,15 @@ const exchangeCodes = new Map();
 
 function createDashboardServer(client) {
   const app = express();
-  const origin = process.env.DASHBOARD_ORIGIN?.replace(/\/+$/, '');
+  const origins = new Set(
+    (process.env.DASHBOARD_ORIGIN || '')
+      .split(',')
+      .map(value => value.trim().replace(/\/+$/, ''))
+      .filter(Boolean)
+  );
+  const origin = [...origins].find(value => {
+    try { return new URL(value).protocol === 'https:'; } catch { return false; }
+  }) || [...origins][0] || '';
   const redirectUri = process.env.DASHBOARD_REDIRECT_URI;
   const returnUrl = process.env.DASHBOARD_RETURN_URL;
   const clientId = process.env.CLIENT_ID;
@@ -53,15 +62,16 @@ function createDashboardServer(client) {
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    if (req.headers.origin === origin && origin) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
+    if (req.headers.origin && origins.has(req.headers.origin)) {
+      res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Vary', 'Origin');
     }
     if (req.method === 'OPTIONS') {
-      if (req.headers.origin !== origin) return res.sendStatus(403);
+      if (!req.headers.origin || !origins.has(req.headers.origin)) return res.sendStatus(403);
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, ngrok-skip-browser-warning');
+      res.setHeader('Access-Control-Max-Age', '600');
       return res.sendStatus(204);
     }
     next();
@@ -70,13 +80,13 @@ function createDashboardServer(client) {
 
   function configReady() {
     try {
-      return Boolean(origin && redirectUri && clientId && clientSecret
-        && sessionSecret?.length >= 32
-        && new URL(origin).protocol === 'https:'
-        && new URL(origin).origin === origin
-        && new URL(redirectUri).protocol === 'https:'
-        && new URL(returnUrl || `${origin}/dashboard.html`).protocol === 'https:'
-        && new URL(returnUrl || `${origin}/dashboard.html`).origin === origin);
+      if (!origin || !redirectUri || !clientId || !clientSecret || !(sessionSecret?.length >= 32)) return false;
+      const primary = new URL(origin);
+      if (primary.protocol !== 'https:' || primary.origin !== origin) return false;
+      if (new URL(redirectUri).protocol !== 'https:') return false;
+      const destination = new URL(returnUrl || `${origin}/dashboard.html`);
+      if (destination.protocol !== 'https:' || !origins.has(destination.origin)) return false;
+      return true;
     } catch {
       return false;
     }
@@ -112,7 +122,7 @@ function createDashboardServer(client) {
   }
 
   function requireOrigin(req, res, next) {
-    if (!origin || req.headers.origin !== origin) {
+    if (!req.headers.origin || !origins.has(req.headers.origin)) {
       return res.status(403).json({ error: 'This request did not come from the configured dashboard.' });
     }
     next();
@@ -267,7 +277,16 @@ function createDashboardServer(client) {
       .filter(channel => channel.type === ChannelType.GuildCategory)
       .sort((a, b) => a.rawPosition - b.rawPosition)
       .map(channel => ({ id: channel.id, name: channel.name }));
-    return { roles, channels, categories };
+    const voiceChannels = [...guild.channels.cache.values()]
+      .filter(channel => [ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(channel.type))
+      .sort((a, b) => (a.parent?.rawPosition ?? -1) - (b.parent?.rawPosition ?? -1) || a.rawPosition - b.rawPosition)
+      .map(channel => ({
+        id: channel.id,
+        name: channel.name,
+        category: channel.parent?.name || '',
+        userLimit: channel.userLimit || 0
+      }));
+    return { roles, channels, categories, voiceChannels };
   }
 
   function validateId(value, label) {
@@ -560,7 +579,13 @@ function createDashboardServer(client) {
     return role;
   }
 
-  app.get('/api/health', (req, res) => res.json({ ok: true, ready: client.isReady(), configured: Boolean(configReady()) }));
+  app.get('/api/health', (req, res) => res.json({
+    ok: true,
+    service: 'lobster-dashboard',
+    ready: client.isReady(),
+    configured: Boolean(configReady()),
+    time: new Date().toISOString()
+  }));
 
   function beginDiscordLogin(req, res, returnAuthorizationUrl = false) {
     if (!configReady()) return res.status(503).json({ error: 'Discord OAuth is not configured on the bot host yet.' });
@@ -690,6 +715,7 @@ function createDashboardServer(client) {
           commands: client.commands.size,
           botPermissions: guild.members.me?.permissions.bitfield.toString() || '0'
         },
+        voice: voiceManager.status(guild),
         autoReplies: db.getAutoReplies(guild.id)
       });
     } catch (error) {
@@ -859,6 +885,78 @@ function createDashboardServer(client) {
         allowedMentions: { parse: [] }
       });
       res.json({ message: 'Test log sent.' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/guilds/:guildId/voice', requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      res.json({
+        voice: voiceManager.status(guild),
+        channels: guildResources(guild).voiceChannels
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/voice/connect', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      const channelId = req.body?.channelId;
+      if (typeof channelId !== 'string' || !/^\d{17,20}$/.test(channelId)) {
+        const error = new Error('Choose the server voice channel Lobster should join.');
+        error.status = 400;
+        throw error;
+      }
+      const channel = guild.channels.cache.get(channelId);
+      if (!channel || ![ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(channel.type)) {
+        const error = new Error('That is not a voice channel in this server.');
+        error.status = 400;
+        throw error;
+      }
+      const permissions = channel.permissionsFor(guild.members.me);
+      if (!permissions?.has([
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.Connect,
+        PermissionFlagsBits.Speak
+      ])) {
+        const error = new Error('Lobster needs View Channel, Connect, and Speak permissions in that voice channel.');
+        error.status = 403;
+        throw error;
+      }
+      const status = await voiceManager.connect(guild, channel);
+      res.json({ voice: status, message: `Lobster joined ${channel.name}.` });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/voice/disconnect', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      voiceManager.disconnect(guild.id);
+      res.json({ voice: voiceManager.status(guild), message: 'Lobster left the voice channel.' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch('/api/guilds/:guildId/voice/auto-reconnect', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      if (typeof req.body?.enabled !== 'boolean') {
+        const error = new Error('Auto-reconnect must be enabled or disabled.');
+        error.status = 400;
+        throw error;
+      }
+      voiceManager.setAutoReconnect(guild.id, req.body.enabled);
+      res.json({
+        voice: voiceManager.status(guild),
+        message: req.body.enabled ? 'Auto-reconnect enabled.' : 'Auto-reconnect disabled.'
+      });
     } catch (error) {
       next(error);
     }
