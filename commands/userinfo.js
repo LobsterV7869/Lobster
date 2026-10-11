@@ -1,8 +1,10 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { LOBSTER_ORANGE } = require('../utils/command-style');
+const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+
+const MAX_ROLES = 24;
 
 function formatDate(timestamp) {
-  return `<t:${Math.floor(timestamp / 1000)}:F>\n<t:${Math.floor(timestamp / 1000)}:R>`;
+  return `<t:${Math.floor(timestamp / 1000)}:D> (<t:${Math.floor(timestamp / 1000)}:R>)`;
 }
 
 module.exports = {
@@ -42,35 +44,49 @@ module.exports = {
     const roles = member
       ? member.roles.cache.filter(role => role.id !== guild.id).sort((first, second) => second.position - first.position)
       : [];
-    const roleList = [...roles.values()].slice(0, 12).map(role => `<@&${role.id}>`);
+    const roleList = [...roles.values()].slice(0, MAX_ROLES).map(role => `<@&${role.id}>`);
     const roleCount = roles.size || 0;
     const highestRole = member?.roles.highest;
+    const name = member?.displayName || user.globalName || user.username;
+
+    const description = [
+      `**${name}**`,
+      member?.nickname ? `AKA ${member.nickname}` : null,
+      `[${user.tag}](${user.displayAvatarURL()}) · ${user.bot ? '🤖 Bot' : '👤 User'}${member?.premiumSince ? ' · ⭐ Booster' : ''}`
+    ].filter(Boolean).join('\n');
+
     const embed = new EmbedBuilder()
       .setColor(LOBSTER_ORANGE)
       .setAuthor({ name: 'Lobster · Member profile', iconURL: user.displayAvatarURL() })
-      .setTitle(member?.displayName || user.globalName || user.username)
+      .setTitle(`👤 ${name}`)
+      .setDescription(description)
       .setThumbnail(user.displayAvatarURL({ size: 512 }))
-      .setDescription([
-        `**Account:** ${user.bot ? 'Bot' : 'User'}${member?.premiumSince ? ' · Server booster' : ''}`,
-        `**User:** ${user}`,
-        `**Highest role:** ${highestRole && highestRole.id !== guild.id ? `<@&${highestRole.id}>` : 'No roles'}`
-      ].join('\n'))
       .addFields(
-        { name: 'User ID', value: `\`${user.id}\``, inline: true },
-        { name: 'Account created', value: formatDate(user.createdTimestamp), inline: true },
+        { name: '🆔 Account ID', value: `\`${user.id}\``, inline: true },
+        { name: '🤖 Bot account', value: user.bot ? 'Yes' : 'No', inline: true },
+        { name: '👑 Primary role', value: highestRole && highestRole.id !== guild.id ? `<@&${highestRole.id}>` : 'No roles', inline: true },
+        { name: '📅 Registered', value: formatDate(user.createdTimestamp), inline: true },
         {
-          name: 'Joined this server',
+          name: '🚪 Joined server',
           value: member?.joinedTimestamp ? formatDate(member.joinedTimestamp) : 'Not a member of this server',
           inline: true
         },
         {
-          name: `Roles${roleCount > 12 ? ` · ${roleCount} total` : ''}`,
-          value: roleList.length ? `${roleList.join(', ')}${roleCount > 12 ? `, and ${roleCount - 12} more` : ''}` : 'No roles',
-          inline: false
+          name: '⭐ Boosting since',
+          value: member?.premiumSinceTimestamp ? formatDate(member.premiumSinceTimestamp) : 'Not boosting',
+          inline: true
         }
       )
-      .setFooter({ text: `Lobster · User information · ${guild.name}` })
+      .setFooter({ text: `${LOBSTER_FOOTER} · ${guild.name}` })
       .setTimestamp();
+
+    embed.addFields({
+      name: `🎖️ Roles · ${roleCount}`,
+      value: roleList.length
+        ? `${roleList.join(' ')}${roleCount > MAX_ROLES ? ` **+${roleCount - MAX_ROLES} more**` : ''}`
+        : 'No roles',
+      inline: false
+    });
 
     return isSlash
       ? interaction.reply({ embeds: [embed] })

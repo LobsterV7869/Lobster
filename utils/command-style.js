@@ -1,36 +1,72 @@
+'use strict';
+
 const { EmbedBuilder } = require('discord.js');
 
 const LOBSTER_ORANGE = 0xff6b35;
 const LOBSTER_FOOTER = '🦞 Lobster';
+const MAX_DESCRIPTION = 4000;
+const MAX_EMBEDS = 10;
 
-function flattenEmbed(value) {
-  const embed = value instanceof EmbedBuilder ? value.toJSON() : { ...value };
-  const parts = [];
-  if (embed.author?.name) parts.push(embed.author.name);
-  if (embed.title) parts.push(embed.title);
-  if (embed.description) parts.push(embed.description);
-  for (const field of embed.fields || []) {
-    const lines = [field.name, field.value].filter(Boolean);
-    if (lines.length) parts.push(lines.join('\n'));
-  }
-  for (const media of [embed.image?.url, embed.video?.url]) {
-    if (typeof media === 'string' && media.length > 0 && !media.startsWith('attachment://')) parts.push(media);
-  }
-  if (embed.footer?.text) parts.push(embed.footer.text);
-  return parts.join('\n');
+function normalizeEmbed(value) {
+  const embed = value instanceof EmbedBuilder ? value : EmbedBuilder.from(value);
+  if (!embed.data.color && embed.data.color !== 0) embed.setColor(LOBSTER_ORANGE);
+  if (!embed.data.footer) embed.setFooter({ text: LOBSTER_FOOTER });
+  return embed;
 }
 
-function stylePayload(command, payload, context) {
-  const normalized = typeof payload === 'string' ? { content: payload } : { ...payload };
-  if (!normalized.embeds?.length) return normalized;
+function chunkText(text) {
+  if (text.length <= MAX_DESCRIPTION) return [text];
+  const chunks = [];
+  let current = '';
+  for (const line of text.split('\n')) {
+    if (line.length > MAX_DESCRIPTION) {
+      if (current) {
+        chunks.push(current);
+        current = '';
+      }
+      for (let index = 0; index < line.length; index += MAX_DESCRIPTION) {
+        chunks.push(line.slice(index, index + MAX_DESCRIPTION));
+      }
+      continue;
+    }
+    const candidate = current ? `${current}\n${line}` : line;
+    if (candidate.length > MAX_DESCRIPTION) {
+      chunks.push(current);
+      current = line;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
 
-  const flattened = normalized.embeds.map(flattenEmbed).filter(Boolean).join('\n\n');
-  delete normalized.embeds;
-  const text = [normalized.content, flattened]
-    .filter(part => typeof part === 'string' && part.length > 0)
-    .join('\n\n');
-  if (text) normalized.content = text.slice(0, 4000);
-  else if (!normalized.files?.length) normalized.content = ' ';
+function textEmbeds(text) {
+  return chunkText(text)
+    .slice(0, MAX_EMBEDS)
+    .map(chunk => new EmbedBuilder()
+      .setColor(LOBSTER_ORANGE)
+      .setDescription(chunk)
+      .setFooter({ text: LOBSTER_FOOTER }));
+}
+
+function stylePayload(command, payload) {
+  const normalized = typeof payload === 'string' ? { content: payload } : { ...payload };
+
+  if (Array.isArray(normalized.embeds) && normalized.embeds.length) {
+    normalized.embeds = normalized.embeds.slice(0, MAX_EMBEDS).map(normalizeEmbed);
+    return normalized;
+  }
+
+  const text = typeof normalized.content === 'string' ? normalized.content.trim() : '';
+  if (!text) return normalized;
+
+  if ((normalized.files?.length) || (normalized.attachments?.length)) {
+    return normalized;
+  }
+
+  normalized.embeds = textEmbeds(text);
+  delete normalized.content;
   return normalized;
 }
 

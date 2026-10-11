@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { LOBSTER_ORANGE } = require('../utils/command-style');
+const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 const IMPORTANT_PERMISSIONS = [
   'Administrator',
@@ -36,30 +36,30 @@ module.exports = {
     const importantPermissions = IMPORTANT_PERMISSIONS
       .filter(name => role.permissions.has(PermissionFlagsBits[name]))
       .map(name => name.replace(/([a-z])([A-Z])/g, '$1 $2'));
-    const members = role.members.size;
+    const colorHex = `#${role.color.toString(16).padStart(6, '0').toUpperCase()}`;
     const embed = new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
+      .setColor(role.color || LOBSTER_ORANGE)
       .setAuthor({ name: 'Lobster · Role profile' })
-      .setTitle(role.name)
+      .setTitle(`🎖️ ${role.name}`)
       .setDescription([
         `**Role:** <@&${role.id}>`,
-        `**ID:** \`${role.id}\``,
-        `**Color:** \`#${role.color.toString(16).padStart(6, '0').toUpperCase()}\``
+        `🆔 **Role ID:** \`${role.id}\``,
+        `🎨 **Color:** \`${colorHex}\``
       ].join('\n'))
       .addFields(
-        { name: 'Cached members', value: members.toLocaleString(), inline: true },
-        { name: 'Position', value: `${role.position} of ${guild.roles.cache.size - 1}`, inline: true },
-        { name: 'Created', value: `<t:${Math.floor(role.createdTimestamp / 1000)}:R>`, inline: true },
-        { name: 'Displayed separately', value: role.hoist ? 'Yes' : 'No', inline: true },
-        { name: 'Mentionable', value: role.mentionable ? 'Yes' : 'No', inline: true },
-        { name: 'Managed by integration', value: role.managed ? 'Yes' : 'No', inline: true },
+        { name: '👥 Members', value: role.members.size.toLocaleString(), inline: true },
+        { name: '📊 Position', value: `${role.position} of ${guild.roles.cache.size - 1}`, inline: true },
+        { name: '📅 Created', value: `<t:${Math.floor(role.createdTimestamp / 1000)}:R>`, inline: true },
+        { name: '📌 Displayed separately', value: role.hoist ? 'Yes' : 'No', inline: true },
+        { name: '🔔 Mentionable', value: role.mentionable ? 'Yes' : 'No', inline: true },
+        { name: '🔗 Managed by integration', value: role.managed ? 'Yes' : 'No', inline: true },
         {
-          name: 'Key permissions',
-          value: importantPermissions.length ? importantPermissions.join(' · ') : 'No elevated permissions',
+          name: '🔑 Key permissions',
+          value: importantPermissions.length ? importantPermissions.map(permission => `\`${permission}\``).join(' · ') : 'No elevated permissions',
           inline: false
         }
       )
-      .setFooter({ text: `${guild.name} · Role information` })
+      .setFooter({ text: `${LOBSTER_FOOTER} · ${guild.name}` })
       .setTimestamp();
 
     return isSlash

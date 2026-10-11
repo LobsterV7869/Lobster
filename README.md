@@ -25,7 +25,7 @@ The optional join-rate guard kicks additional eligible joiners after a configura
 
 For static hosts that support a `_headers` file (such as Cloudflare Pages or Netlify), `~/Site/_headers` applies clickjacking and browser security headers. GitHub Pages does not apply this file; for GitHub Pages, serve the dashboard through a proxy/CDN that sets the headers described there. The dashboard also refuses to run when embedded as a best-effort fallback.
 
-Prefix commands use concise text replies; slash-command embeds keep Lobster's orange `#FF6B35` styling. `/userinfo`, `/serverinfo`, and `/roleinfo` show expanded member, server, and role profiles.
+Every command reply is sent as a Lobster-styled embed card with the orange `#FF6B35` accent and a `🦞 Lobster` footer; short text replies are wrapped automatically. `/userinfo`, `/serverinfo`, and `/roleinfo` show expanded member, server, and role profiles.
 
 ## First server setup
 
@@ -33,7 +33,7 @@ Run `/setup` as a server administrator. It creates a starter role and channel la
 
 Every slash command also has a prefix form. The default prefix for new server settings is `p`; server administrators can view or change it with `/prefix` or `p prefix new`. Existing servers keep their saved prefix.
 
-Every command reply is a plain text message — Lobster never replies with embeds. Prefix commands use `p command [arguments]`. Examples: `p kick @member [reason]`, `p ban @member [reason]`, and `p mute @member <minutes> [reason]`. If a target is missing, Lobster gives a short prompt such as "Please mention a user to kick."
+Prefix commands use `p command [arguments]`. Examples: `p kick @member [reason]`, `p ban @member [reason]`, and `p mute @member <minutes> [reason]`. If a target is missing, Lobster gives a short prompt such as "Please mention a user to kick."
 
 ### Automatic server backups
 

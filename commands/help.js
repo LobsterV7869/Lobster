@@ -5,7 +5,7 @@ const {
   StringSelectMenuBuilder
 } = require('discord.js');
 const db = require('../utils/database');
-const { LOBSTER_ORANGE } = require('../utils/command-style');
+const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 const CATEGORIES = {
   General: {
@@ -30,7 +30,7 @@ function commandCategory(command) {
 
 function commandLines(commands, prefix) {
   return commands
-    .map(command => `• \`/${command.data.name}\` · \`${prefix} ${command.data.name}\` — ${command.data.description}`)
+    .map(command => `**\`/${command.data.name}\`** · \`${prefix} ${command.data.name}\`\n> ${command.data.description}`)
     .join('\n')
     .slice(0, 3800);
 }
@@ -42,43 +42,55 @@ function overviewEmbed(client, prefix) {
   ]));
   return new EmbedBuilder()
     .setColor(LOBSTER_ORANGE)
-    .setDescription(
-      `Select a category below to view its commands. You can use my commands with \`${prefix}\` or /. Prefix commands work the same as slash commands.`
-    )
+    .setAuthor({ name: 'Lobster · Help centre', iconURL: client.user.displayAvatarURL() })
+    .setTitle('🦞 Lobster Commands')
+    .setDescription([
+      `Everything Lobster can do, grouped by category. Pick one from the menu below.`,
+      `**Prefix:** \`${prefix}\` · **Slash:** \`/\``,
+      `Every command works both ways — \`${prefix} ping\` is the same as \`/ping\`.`
+    ].join('\n'))
     .addFields(
       ...Object.entries(CATEGORIES).map(([category, details]) => ({
         name: `${details.emoji}  ${category} · ${counts[category]} commands`,
         value: details.description,
-        inline: true
+        inline: false
       })),
       {
-        name: 'Getting started',
-        value: `Server admins: run \`/setup\` for a starter layout.\nThis server’s prefix is \`${prefix}\`; change it with \`/prefix\`.`,
+        name: '🚀  Popular features',
+        value: '`/welcomer` welcome cards · `/ticket-panel` support · `/levels` chat XP · `/automod` filters · `/security` protections · `/log` event logs',
         inline: false
       },
       {
-        name: 'Popular features',
-        value: '`/welcomer` welcome/farewell · `/ticket-panel` support · `/levels` chat XP · `/automod` filters · `/security` protections · `/log` event logs',
+        name: '⚙️  Getting started',
+        value: [
+          `Server admins: run \`/setup\` for a ready-made role and channel layout.`,
+          `Change the prefix with \`/prefix\`.`
+        ].join('\n'),
         inline: false
       },
       {
-        name: 'Privacy',
-        value: 'Message backups are off by default. Server admins can opt in to `/backup` for a rotating three-day snapshot.',
+        name: '🔒  Privacy',
+        value: 'Message backups are **off by default**. Admins can opt in to `/backup` for a rotating three-day snapshot.',
         inline: false
       }
     )
-    .setFooter({ text: 'Lobster · Commands are available as /command or prefix command' });
+    .setFooter({ text: `${LOBSTER_FOOTER} · Commands available as /command or prefix command` })
+    .setTimestamp();
 }
 
 function categoryEmbed(category, commands, prefix) {
   const details = CATEGORIES[category];
   return new EmbedBuilder()
     .setColor(LOBSTER_ORANGE)
-    .setTitle(`🦞 ${details.emoji} ${category}`)
-    .setDescription(
-      `Commands work with slash or \`${prefix} command\`.\n${commandLines(commands, prefix)}`
-    )
-    .setFooter({ text: '🦞 Lobster' });
+    .setAuthor({ name: 'Lobster · Help centre' })
+    .setTitle(`${details.emoji}  ${category}`)
+    .setDescription([
+      `**${commands.length} command${commands.length === 1 ? '' : 's'}** · use them as \`/command\` or \`${prefix} command\`.`,
+      '',
+      commandLines(commands, prefix)
+    ].join('\n'))
+    .setFooter({ text: LOBSTER_FOOTER })
+    .setTimestamp();
 }
 
 function categoryMenu() {

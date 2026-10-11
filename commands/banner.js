@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -19,10 +20,13 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setTitle(`${user.username}'s Banner`)
+      .setColor(LOBSTER_ORANGE)
+      .setAuthor({ name: 'Lobster · Banner', iconURL: user.displayAvatarURL() })
+      .setTitle(`🎏 ${user.username}`)
       .setImage(fullUser.bannerURL({ dynamic: true, size: 512 }))
-      .setColor('#0099ff');
-    
+      .setFooter({ text: LOBSTER_FOOTER })
+      .setTimestamp();
+
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });
   }

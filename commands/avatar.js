@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -14,10 +15,13 @@ module.exports = {
     if (!user) return isSlash ? interaction.reply('User not found') : message.reply('User not found');
 
     const embed = new EmbedBuilder()
-      .setTitle(`${user.username}'s Avatar`)
+      .setColor(LOBSTER_ORANGE)
+      .setAuthor({ name: 'Lobster · Avatar', iconURL: user.displayAvatarURL() })
+      .setTitle(`🖼️ ${user.username}`)
       .setImage(user.displayAvatarURL({ dynamic: true, size: 512 }))
-      .setColor('#0099ff');
-    
+      .setFooter({ text: LOBSTER_FOOTER })
+      .setTimestamp();
+
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });
   }

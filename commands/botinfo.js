@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, version: discordVersion } = require('discord.js');
+const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -15,19 +16,25 @@ module.exports = {
       hours ? `${hours}h` : null,
       `${minutes}m`
     ].filter(Boolean).join(' ');
+    const members = client.guilds.cache.reduce((total, guild) => total + guild.memberCount, 0);
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(LOBSTER_ORANGE)
       .setAuthor({ name: 'Lobster · Bot information', iconURL: client.user.displayAvatarURL() })
+      .setTitle(`🦞 ${client.user.username}`)
       .setDescription('A public Discord bot for server setup, moderation, support, and community tools.')
       .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
       .addFields(
-        { name: 'Servers', value: client.guilds.cache.size.toLocaleString(), inline: true },
-        { name: 'Uptime', value: uptime, inline: true },
-        { name: 'Library', value: 'Discord.js v14', inline: true }
+        { name: '🌐 Servers', value: client.guilds.cache.size.toLocaleString(), inline: true },
+        { name: '👥 Members', value: members.toLocaleString(), inline: true },
+        { name: '🧩 Commands', value: client.commands.size.toLocaleString(), inline: true },
+        { name: '⏱️ Uptime', value: uptime, inline: true },
+        { name: '📡 Gateway', value: `${Math.max(0, client.ws.ping)} ms`, inline: true },
+        { name: '📚 Library', value: `discord.js v${discordVersion}`, inline: true }
       )
-      .setFooter({ text: 'Use /help to browse commands · /ping to check latency' })
+      .setFooter({ text: `${LOBSTER_FOOTER} · Use /help to browse commands` })
       .setTimestamp();
+
     return isSlash
       ? interaction.reply({ embeds: [embed] })
       : message.reply({ embeds: [embed] });
