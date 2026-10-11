@@ -99,6 +99,16 @@ l ticket-panel #support @Moderator --title "Support desk" --message "Choose belo
 
 Chat levels are enabled by default. A member earns a small random amount of XP at most once per minute. Use `/level [member]` to see a rank and progress, `/leaderboard` for the top ten, or `/levels` to toggle XP and choose an announcement channel. Level data is kept separately for each server.
 
+## Voice joiner
+
+The dashboard's **Voice joiner** connects the official Lobster **bot account** to a voice channel using Discord's supported bot gateway (the `@discordjs/voice` `joinVoiceChannel` helper). Enter a **Server ID** and **Voice Channel ID** (or pick a visible channel to fill the ID), then use **Connect** and **Disconnect**. The Server ID must match a server where Lobster is installed and where you have **Manage Server**.
+
+A join is only reported as successful after the voice connection reaches the `ready` state. If it cannot be confirmed within 15 seconds the bot destroys the connection, clears the saved channel, and returns an error — the dashboard never claims an account has joined unless the connection is confirmed. Lobster needs **View Channel**, **Connect**, and **Speak** in the target channel; a user limit that Lobster cannot fit into, a missing invite, or missing channel permissions all surface as errors. Auto-reconnect (off unless enabled) remembers the saved channel and rejoins it after a drop or bot restart, but it still requires the same permissions and cannot recover from being removed from the server.
+
+### Why the self-bot reference is not integrated
+
+Tools such as `efekrbas/discord-voice-joiner` are **not compatible with Discord's official APIs** and are deliberately not integrated. That project is a self-bot: it reads raw **user account tokens** from `tokens.txt` and connects to the user gateway (`wss://gateway.discord.gg`), sending OP 2 `IDENTIFY` with spoofed client properties and OP 4 voice-state updates. Automating a user account this way violates Discord's Terms of Service and can result in permanent account termination; it also requires storing a credential equivalent to a password and evades client-fingerprint detection. Discord provides no official API for a user account to join voice, so this cannot be done safely or with support.
+
 ## Giveaways
 
 Start a giveaway with `/giveaway`, or use either prefix order: `p giveaway 10m Nitro` or `p giveaway Nitro 10m`. Prefix durations accept minutes (`m`), hours (`h`), or days (`d`); the winner count defaults to one. To choose multiple winners, use `p giveaway 10m 2 Nitro` or `p giveaway Nitro 10m 2`.

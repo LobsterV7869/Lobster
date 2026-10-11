@@ -91,8 +91,12 @@ async function connect(guild, channel) {
   db.updateSetting(guild.id, 'voiceChannel', channel.id);
   try {
     await entersState(connection, VoiceConnectionStatus.Ready, 15000);
-  } catch {
-    // The connection can still become ready shortly after; report the live state either way.
+  } catch (error) {
+    try { connection.destroy(); } catch { /* already destroyed */ }
+    db.updateSetting(guild.id, 'voiceChannel', null);
+    const connectionError = new Error('Voice connection could not be confirmed within 15 seconds. Ensure Lobster has View Channel, Connect, and Speak permissions in that voice channel and that the channel is not full.');
+    connectionError.status = 504;
+    throw connectionError;
   }
   return withChannelName(guild, connectionState(guild.id));
 }

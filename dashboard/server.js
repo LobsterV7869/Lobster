@@ -905,15 +905,20 @@ function createDashboardServer(client) {
   app.post('/api/guilds/:guildId/voice/connect', requireOrigin, requireSession, async (req, res, next) => {
     try {
       const guild = await managedGuild(req, req.params.guildId);
+      if (req.body?.serverId && req.body.serverId !== guild.id) {
+        const error = new Error('Server ID does not match the active server selection.');
+        error.status = 400;
+        throw error;
+      }
       const channelId = req.body?.channelId;
       if (typeof channelId !== 'string' || !/^\d{17,20}$/.test(channelId)) {
-        const error = new Error('Choose the server voice channel Lobster should join.');
+        const error = new Error('Voice Channel ID must be a valid 17–20 digit Discord ID.');
         error.status = 400;
         throw error;
       }
       const channel = guild.channels.cache.get(channelId);
       if (!channel || ![ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(channel.type)) {
-        const error = new Error('That is not a voice channel in this server.');
+        const error = new Error('That Voice Channel ID was not found in this server.');
         error.status = 400;
         throw error;
       }
