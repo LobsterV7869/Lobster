@@ -6,15 +6,32 @@ function percent(part, total) {
   return `${Math.round((part / total) * 100)}%`;
 }
 
+async function countBots(guild) {
+  try {
+    if (guild.members.cache.size < guild.memberCount) {
+      await Promise.race([
+        guild.members.fetch(),
+        new Promise((resolve, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+      ]);
+    }
+  } catch {
+    // Fall back to whatever is cached if the member list cannot be fetched in time.
+  }
+  return guild.members.cache.filter(member => member.user.bot).size;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('membercount')
-    .setDescription('Show the server member count and cached member breakdown'),
+    .setDescription('Show the server member count and member breakdown'),
   category: 'Utility',
-  async run({ guild, interaction, message }) {
+  async run({ guild, interaction, message, isSlash }) {
+    if (isSlash && !interaction.deferred && !interaction.replied) {
+      await interaction.deferReply();
+    }
     const total = guild.memberCount;
-    const cachedBots = guild.members.cache.filter(member => member.user.bot).size;
-    const cachedHumans = Math.max(0, total - cachedBots);
+    const bots = await countBots(guild);
+    const humans = Math.max(0, total - bots);
     const embed = new EmbedBuilder()
       .setColor(LOBSTER_ORANGE)
       .setAuthor({ name: 'Lobster · Community stats' })
@@ -22,16 +39,16 @@ module.exports = {
       .setDescription(`This server has **${total.toLocaleString()} members**.`)
       .addFields(
         { name: '🧮 Total', value: total.toLocaleString(), inline: true },
-        { name: '👤 Humans', value: `${cachedHumans.toLocaleString()} (${percent(cachedHumans, total)})`, inline: true },
-        { name: '🤖 Bots', value: `${cachedBots.toLocaleString()} (${percent(cachedBots, total)})`, inline: true },
+        { name: '👤 Humans', value: `${humans.toLocaleString()} (${percent(humans, total)})`, inline: true },
+        { name: '🤖 Bots', value: `${bots.toLocaleString()} (${percent(bots, total)})`, inline: true },
         { name: '🚀 Boosts', value: `${guild.premiumSubscriptionCount ?? 0}`, inline: true },
         { name: '📈 Boost level', value: `Tier ${guild.premiumTier}`, inline: true }
       )
-      .setFooter({ text: `${LOBSTER_FOOTER} · Cached breakdown may be partial in very large servers` })
+      .setFooter({ text: `${LOBSTER_FOOTER}` })
       .setTimestamp();
 
-    return interaction
-      ? interaction.reply({ embeds: [embed] })
+    return isSlash
+      ? interaction.editReply({ embeds: [embed] })
       : message.reply({ embeds: [embed] });
   }
 };

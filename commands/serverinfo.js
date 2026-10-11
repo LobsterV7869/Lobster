@@ -21,12 +21,29 @@ function percent(part, total) {
   return `${Math.round((part / total) * 100)}%`;
 }
 
+async function countBots(guild) {
+  try {
+    if (guild.members.cache.size < guild.memberCount) {
+      await Promise.race([
+        guild.members.fetch(),
+        new Promise((resolve, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+      ]);
+    }
+  } catch {
+    // Fall back to whatever is cached if the member list cannot be fetched in time.
+  }
+  return guild.members.cache.filter(member => member.user.bot).size;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('serverinfo')
     .setDescription('Show detailed information about this server'),
   category: 'Utility',
-  async run({ guild, interaction, message }) {
+  async run({ guild, interaction, message, isSlash }) {
+    if (isSlash && !interaction.deferred && !interaction.replied) {
+      await interaction.deferReply();
+    }
     const channels = guild.channels.cache;
     const countChannels = type => channels.filter(channel => channel.type === type).size;
     const textChannels = countChannels(ChannelType.GuildText) + countChannels(ChannelType.GuildAnnouncement);
@@ -34,7 +51,7 @@ module.exports = {
     const categories = countChannels(ChannelType.GuildCategory);
 
     const total = guild.memberCount;
-    const botCount = guild.members.cache.filter(member => member.user.bot).size;
+    const botCount = await countBots(guild);
     const humanCount = Math.max(0, total - botCount);
 
     const owner = `<@${guild.ownerId}>`;
@@ -114,8 +131,8 @@ module.exports = {
     if (icon) embed.setThumbnail(icon);
     if (banner) embed.setImage(banner);
 
-    return interaction
-      ? interaction.reply({ embeds: [embed] })
+    return isSlash
+      ? interaction.editReply({ embeds: [embed] })
       : message.reply({ embeds: [embed] });
   }
 };
