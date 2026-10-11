@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const fs = require('node:fs');
 const express = require('express');
 const {
   ActionRowBuilder,
@@ -895,7 +896,8 @@ function createDashboardServer(client) {
       const guild = await managedGuild(req, req.params.guildId);
       res.json({
         voice: voiceManager.status(guild),
-        channels: guildResources(guild).voiceChannels
+        channels: guildResources(guild).voiceChannels,
+        recordings: voiceManager.listRecordings(guild.id, guild)
       });
     } catch (error) {
       next(error);
@@ -962,6 +964,90 @@ function createDashboardServer(client) {
         voice: voiceManager.status(guild),
         message: req.body.enabled ? 'Auto-reconnect enabled.' : 'Auto-reconnect disabled.'
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/voice/mute', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      if (typeof req.body?.mute !== 'boolean') {
+        const error = new Error('Microphone state must be open or closed.');
+        error.status = 400;
+        throw error;
+      }
+      const voice = voiceManager.setSelfMute(guild.id, req.body.mute);
+      res.json({ voice, message: req.body.mute ? 'Microphone closed.' : 'Microphone opened.' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/voice/deafen', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      if (typeof req.body?.deafen !== 'boolean') {
+        const error = new Error('Deafen state must be open or closed.');
+        error.status = 400;
+        throw error;
+      }
+      const voice = voiceManager.setSelfDeaf(guild.id, req.body.deafen);
+      res.json({ voice, message: req.body.deafen ? 'Deafened.' : 'Undeafened.' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/voice/recording/start', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      const voice = voiceManager.recordStart(guild);
+      res.json({
+        voice,
+        recordings: voiceManager.listRecordings(guild.id, guild),
+        message: 'Recording started. Lobster is capturing the members of the voice channel.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/voice/recording/stop', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      const voice = await voiceManager.recordStop(guild);
+      res.json({
+        voice,
+        recordings: voiceManager.listRecordings(guild.id, guild),
+        message: 'Recording stopped. The captured audio is saved below.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/guilds/:guildId/voice/recordings', requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      res.json({ recordings: voiceManager.listRecordings(guild.id, guild) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/guilds/:guildId/voice/recordings/:session/:file', requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      const filePath = voiceManager.resolveRecordingFile(guild.id, req.params.session, req.params.file);
+      if (!filePath) {
+        const error = new Error('That recording could not be found.');
+        error.status = 404;
+        throw error;
+      }
+      res.setHeader('Content-Type', 'audio/ogg');
+      res.setHeader('Content-Disposition', `attachment; filename="${guild.id}-${req.params.file}"`);
+      fs.createReadStream(filePath).on('error', next).pipe(res);
     } catch (error) {
       next(error);
     }

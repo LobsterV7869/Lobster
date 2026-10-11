@@ -1,12 +1,21 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+const prism = require('prism-media');
+const ffmpegPath = require('ffmpeg-static');
 const {
   joinVoiceChannel,
   getVoiceConnection,
   entersState,
-  VoiceConnectionStatus
+  VoiceConnectionStatus,
+  EndBehaviorType
 } = require('@discordjs/voice');
 const db = require('../utils/database');
+
+const RECORDINGS_DIR = path.join(__dirname, '..', 'data', 'recordings');
+const recordings = new Map();
 
 const MAX_RECONNECT_ATTEMPTS = 4;
 const RECONNECT_BASE_DELAY = 3000;
@@ -25,11 +34,22 @@ function connectionState(guildId) {
   const connection = getVoiceConnection(guildId);
   const entry = desired.get(guildId);
   const stored = settings(guildId);
+  const session = recordings.get(guildId);
   return {
     connected: Boolean(connection && connection.state.status === VoiceConnectionStatus.Ready),
     status: connection?.state.status || 'idle',
     channelId: connection?.joinConfig?.channelId || entry?.channelId || stored.voiceChannel || null,
-    autoReconnect: Boolean(entry?.autoReconnect ?? stored.voiceAutoReconnect)
+    autoReconnect: Boolean(entry?.autoReconnect ?? stored.voiceAutoReconnect),
+    selfMute: Boolean(connection?.joinConfig?.selfMute),
+    selfDeaf: Boolean(connection?.joinConfig?.selfDeaf ?? true),
+    recording: session
+      ? {
+          active: true,
+          id: session.id,
+          since: session.startedAt,
+          participants: session.streams.size
+        }
+      : { active: false, id: null, since: null, participants: 0 }
   };
 }
 
@@ -176,6 +196,7 @@ async function connect(guild, channel, { isReconnect = false } = {}) {
 
 function disconnect(guildId) {
   clearReconnect(guildId);
+  stopRecordingQuietly(guildId);
   const entry = desired.get(guildId);
   if (entry) desired.set(guildId, { ...entry, channelId: null, attempts: 0 });
   destroyIntentional(getVoiceConnection(guildId));
@@ -208,10 +229,177 @@ async function restore(client) {
   }
 }
 
+function setSelfMute(guildId, mute) {
+  const connection = getVoiceConnection(guildId);
+  if (!connection || connection.state.status !== VoiceConnectionStatus.Ready) {
+    const error = new Error('Lobster is not connected to a voice channel.');
+    error.status = 409;
+    throw error;
+  }
+  connection.rejoin({ selfMute: Boolean(mute) });
+  return connectionState(guildId);
+}
+
+function setSelfDeaf(guildId, deaf) {
+  const connection = getVoiceConnection(guildId);
+  if (!connection || connection.state.status !== VoiceConnectionStatus.Ready) {
+    const error = new Error('Lobster is not connected to a voice channel.');
+    error.status = 409;
+    throw error;
+  }
+  connection.rejoin({ selfDeaf: Boolean(deaf) });
+  return connectionState(guildId);
+}
+
+function subscribeRecordingUser(session, guild, userId) {
+  if (session.streams.has(userId)) return;
+  let opus;
+  try {
+    opus = session.connection.receiver.subscribe(userId, {
+      end: { behavior: EndBehaviorType.Manual }
+    });
+  } catch {
+    return;
+  }
+  const decoder = new prism.opus.Decoder({ rate: 48000, channels: 2, frameSize: 960 });
+  const file = path.join(session.dir, `${userId}.ogg`);
+  const ffmpeg = spawn(ffmpegPath, [
+    '-hide_banner', '-loglevel', 'error',
+    '-f', 's16le', '-ar', '48000', '-ac', '2',
+    '-i', 'pipe:0',
+    '-c:a', 'libopus', '-b:a', '64k',
+    '-y', file
+  ], { stdio: ['pipe', 'ignore', 'ignore'] });
+  const entry = {
+    userId,
+    file,
+    opus,
+    decoder,
+    ffmpeg,
+    finished: new Promise(resolve => ffmpeg.once('close', resolve))
+  };
+  session.streams.set(userId, entry);
+  opus.on('error', () => {});
+  decoder.on('error', () => {});
+  ffmpeg.stdin.on('error', () => {});
+  opus.pipe(decoder).pipe(ffmpeg.stdin);
+}
+
+function recordStart(guild) {
+  const connection = getVoiceConnection(guild.id);
+  if (!connection || connection.state.status !== VoiceConnectionStatus.Ready) {
+    const error = new Error('Lobster must be connected to a voice channel before recording.');
+    error.status = 409;
+    throw error;
+  }
+  if (recordings.has(guild.id)) {
+    const error = new Error('A recording is already in progress for this server.');
+    error.status = 409;
+    throw error;
+  }
+  if (connection.joinConfig.selfDeaf) {
+    connection.rejoin({ selfDeaf: false });
+  }
+  const id = String(Date.now());
+  const dir = path.join(RECORDINGS_DIR, guild.id, id);
+  fs.mkdirSync(dir, { recursive: true });
+  const session = {
+    id,
+    dir,
+    startedAt: Date.now(),
+    connection,
+    streams: new Map(),
+    onSpeaking: null
+  };
+  session.onSpeaking = userId => subscribeRecordingUser(session, guild, userId);
+  connection.receiver.speaking.on('start', session.onSpeaking);
+  const channel = connection.joinConfig.channelId
+    ? guild.channels.cache.get(connection.joinConfig.channelId)
+    : null;
+  if (channel) {
+    for (const member of channel.members.values()) {
+      if (!member.user.bot) subscribeRecordingUser(session, guild, member.id);
+    }
+  }
+  recordings.set(guild.id, session);
+  return connectionState(guild.id);
+}
+
+async function recordStop(guild) {
+  const session = recordings.get(guild.id);
+  if (session) {
+    recordings.delete(guild.id);
+    if (session.onSpeaking) session.connection.receiver.speaking.off('start', session.onSpeaking);
+    for (const entry of session.streams.values()) {
+      try { entry.opus.destroy(); } catch { /* stream already ended */ }
+      try { entry.decoder.end(); } catch { /* stream already ended */ }
+    }
+    await Promise.allSettled([...session.streams.values()].map(entry => entry.finished));
+  }
+  return connectionState(guild.id);
+}
+
+function stopRecordingQuietly(guildId) {
+  const session = recordings.get(guildId);
+  if (!session) return;
+  recordings.delete(guildId);
+  if (session.onSpeaking) session.connection.receiver.speaking.off('start', session.onSpeaking);
+  for (const entry of session.streams.values()) {
+    try { entry.opus.destroy(); } catch { /* stream already ended */ }
+    try { entry.decoder.end(); } catch { /* stream already ended */ }
+    entry.finished.catch(() => {});
+  }
+}
+
+function listRecordings(guildId, guild = null) {
+  const base = path.join(RECORDINGS_DIR, guildId);
+  if (!fs.existsSync(base)) return [];
+  return fs.readdirSync(base, { withFileTypes: true })
+    .filter(item => item.isDirectory() && /^\d{10,}$/.test(item.name))
+    .map(item => {
+      const dir = path.join(base, item.name);
+      const files = fs.readdirSync(dir)
+        .filter(file => file.endsWith('.ogg'))
+        .map(file => {
+          const userId = file.replace(/\.ogg$/, '');
+          const stat = fs.statSync(path.join(dir, file));
+          return {
+            userId,
+            name: guild?.members?.cache?.get(userId)?.displayName || userId,
+            file,
+            size: stat.size,
+            mtime: stat.mtimeMs
+          };
+        })
+        .filter(entry => entry.size > 0)
+        .sort((a, b) => a.mtime - b.mtime);
+      return { id: item.name, startedAt: Number(item.name) || null, files };
+    })
+    .filter(session => session.files.length > 0)
+    .sort((a, b) => b.id.localeCompare(a.id));
+}
+
+function resolveRecordingFile(guildId, sessionId, file) {
+  if (!/^\d{10,}$/.test(sessionId)) return null;
+  if (!/^\d{17,20}\.ogg$/.test(file)) return null;
+  const base = path.join(RECORDINGS_DIR, guildId);
+  const candidate = path.join(base, sessionId, file);
+  if (!candidate.startsWith(base + path.sep)) return null;
+  if (!fs.existsSync(candidate)) return null;
+  return candidate;
+}
+
 module.exports = {
   status: guild => withChannelName(guild, connectionState(guild.id)),
   connect,
   disconnect,
   setAutoReconnect,
-  restore
+  restore,
+  setSelfMute,
+  setSelfDeaf,
+  recordStart,
+  recordStop,
+  stopRecordingQuietly,
+  listRecordings,
+  resolveRecordingFile
 };
