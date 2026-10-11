@@ -792,6 +792,84 @@ function createDashboardServer(client) {
     }
   });
 
+  app.post('/api/guilds/:guildId/cleanup', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId, 'ManageGuild');
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      const channelIds = Array.isArray(body.channels) ? [...new Set(body.channels)] : [];
+      const roleIds = Array.isArray(body.roles) ? [...new Set(body.roles)] : [];
+      const total = channelIds.length + roleIds.length;
+      const badRequest = message => {
+        const error = new Error(message);
+        error.status = 400;
+        return error;
+      };
+      if (!total) throw badRequest('Select at least one channel or role to delete.');
+      if (total > 100) throw badRequest('Delete at most 100 items at a time.');
+      for (const id of [...channelIds, ...roleIds]) {
+        if (typeof id !== 'string' || !/^\d{17,20}$/.test(id)) throw badRequest('Invalid selection.');
+      }
+      if (body.confirm !== guild.name) {
+        throw badRequest(`Type the server name "${guild.name}" to confirm this deletion.`);
+      }
+
+      const me = guild.members.me || await guild.members.fetchMe();
+      const userId = req.dashboardSession.user.id;
+      const actingMember = await guild.members.fetch(userId);
+      const isAdmin = actingMember.permissions.has(PermissionFlagsBits.Administrator);
+
+      if (channelIds.length) {
+        if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+          const error = new Error('Lobster needs Manage Channels to delete channels.');
+          error.status = 403;
+          throw error;
+        }
+        if (!isAdmin && !actingMember.permissions.has(PermissionFlagsBits.ManageChannels)) {
+          const error = new Error('You need Manage Channels to delete channels.');
+          error.status = 403;
+          throw error;
+        }
+      }
+      if (roleIds.length && !isAdmin && !actingMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+        const error = new Error('You need Manage Roles to delete roles.');
+        error.status = 403;
+        throw error;
+      }
+
+      const reason = `Bulk cleanup from Lobster dashboard by ${userId}`;
+      const deleted = { channels: [], roles: [] };
+      const failed = [];
+      for (const id of channelIds) {
+        const channel = guild.channels.cache.get(id);
+        if (!channel) {
+          failed.push({ id, name: id, reason: 'Channel no longer exists.' });
+          continue;
+        }
+        const label = channel.name;
+        try {
+          await channel.delete(reason);
+          deleted.channels.push(label);
+        } catch (error) {
+          failed.push({ id, name: label, reason: error.message });
+        }
+      }
+      for (const id of roleIds) {
+        let label = id;
+        try {
+          const role = await editableRole(guild, id, userId);
+          label = role.name;
+          await role.delete(reason);
+          deleted.roles.push(label);
+        } catch (error) {
+          failed.push({ id, name: label, reason: error.message });
+        }
+      }
+      res.json({ deleted, failed });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post('/api/guilds/:guildId/auto-replies', requireOrigin, requireSession, async (req, res, next) => {
     try {
       const guild = await managedGuild(req, req.params.guildId);
