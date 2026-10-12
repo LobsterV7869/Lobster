@@ -16,7 +16,8 @@ const {
   EmbedBuilder,
   GatewayIntentBits,
   PermissionFlagsBits,
-  Partials
+  Partials,
+  UserSelectMenuBuilder
 } = require('discord.js');
 const db = require('./utils/database');
 const { createDashboardServer } = require('./dashboard/server');
@@ -801,6 +802,59 @@ client.on('interactionCreate', async interaction => {
     return;
   }
 
+  if (interaction.isUserSelectMenu() && ['ticket_add_select', 'ticket_remove_select'].includes(interaction.customId)) {
+    try {
+      const settings = db.getSettings(interaction.guildId);
+      const ticketMember = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+      const ticketOwnerId = interaction.channel.topic?.match(/^(?:lobster-ticket|ticket-owner):(\d+)$/)?.[1];
+      if (!ticketOwnerId) {
+        await interaction.reply({ content: 'This is not an active ticket channel.', ephemeral: true });
+        return;
+      }
+      const isStaff = ticketMember && ((settings.ticketAdminRole && ticketMember.roles.cache.has(settings.ticketAdminRole))
+        || ticketMember.permissions.has(PermissionFlagsBits.ManageChannels));
+      if (!isStaff && interaction.user.id !== ticketOwnerId) {
+        await interaction.reply({ content: 'Only the ticket creator or server staff can manage ticket members.', ephemeral: true });
+        return;
+      }
+      const add = interaction.customId === 'ticket_add_select';
+      const target = await interaction.guild.members.fetch(interaction.values[0]).catch(() => null);
+      if (!target) {
+        await interaction.reply({ content: 'I could not find that member in this server.', ephemeral: true });
+        return;
+      }
+      if (target.id === client.user.id) {
+        await interaction.reply({ content: 'I am already in every ticket.', ephemeral: true });
+        return;
+      }
+      if (!add && target.id === ticketOwnerId) {
+        await interaction.reply({ content: 'The ticket creator owns this ticket and cannot be removed.', ephemeral: true });
+        return;
+      }
+      if (add) {
+        await interaction.channel.permissionOverwrites.edit(target.id, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true
+        }, { reason: `Ticket member added by ${interaction.user.tag}` });
+      } else {
+        await interaction.channel.permissionOverwrites.delete(target.id, `Ticket member removed by ${interaction.user.tag}`)
+          .catch(() => {});
+      }
+      await interaction.reply({
+        content: add ? `Added ${target} to the ticket.` : `Removed ${target} from the ticket.`,
+        allowedMentions: { parse: [] },
+        ephemeral: true
+      });
+    } catch (error) {
+      console.error('Ticket member management failed:', error);
+      const payload = { content: 'That action failed. Check my Manage Channels permission.', ephemeral: true };
+      if (interaction.deferred || interaction.replied) await interaction.followUp(payload).catch(() => {});
+      else await interaction.reply(payload).catch(() => {});
+    }
+    return;
+  }
+
   if (!interaction.isButton()) return;
   if (interaction.customId.startsWith('ship:')) {
     if (interaction.message.author.id !== client.user.id) return;
@@ -935,6 +989,49 @@ client.on('interactionCreate', async interaction => {
     }
     return;
   }
+  if (['ticket_add', 'ticket_remove', 'ticket_call'].includes(interaction.customId)) {
+    if (!interaction.guild) {
+      await interaction.reply({ content: 'Ticket controls only work in a server.', ephemeral: true });
+      return;
+    }
+    const settings = db.getSettings(interaction.guildId);
+    const ticketMember = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+    const ticketOwnerId = interaction.channel.topic?.match(/^(?:lobster-ticket|ticket-owner):(\d+)$/)?.[1];
+    if (!ticketOwnerId) {
+      await interaction.reply({ content: 'This is not an active ticket channel.', ephemeral: true });
+      return;
+    }
+    const isStaff = ticketMember && ((settings.ticketAdminRole && ticketMember.roles.cache.has(settings.ticketAdminRole))
+      || ticketMember.permissions.has(PermissionFlagsBits.ManageChannels));
+    const isOwner = interaction.user.id === ticketOwnerId;
+    if (!isStaff && !isOwner) {
+      await interaction.reply({ content: 'Only the ticket creator or server staff can use these controls.', ephemeral: true });
+      return;
+    }
+    if (interaction.customId === 'ticket_call') {
+      const staffRole = settings.ticketAdminRole ? interaction.guild.roles.cache.get(settings.ticketAdminRole) : null;
+      await interaction.reply({
+        content: staffRole
+          ? `${staffRole} — ${interaction.user} is requesting assistance in this ticket.`
+          : `${interaction.user} is requesting staff assistance in this ticket.`,
+        allowedMentions: staffRole ? { roles: [staffRole.id] } : { parse: [] }
+      });
+      return;
+    }
+    const add = interaction.customId === 'ticket_add';
+    const menu = new UserSelectMenuBuilder()
+      .setCustomId(add ? 'ticket_add_select' : 'ticket_remove_select')
+      .setPlaceholder(add ? 'Choose a member to add to this ticket' : 'Choose a member to remove from this ticket')
+      .setMinValues(1)
+      .setMaxValues(1);
+    await interaction.reply({
+      content: add ? 'Select the member to add to this ticket.' : 'Select the member to remove from this ticket.',
+      components: [new ActionRowBuilder().addComponents(menu)],
+      ephemeral: true
+    });
+    return;
+  }
+
   if (!['giveaway_join', 'ticket_open', 'ticket_close'].includes(interaction.customId)) return;
   interaction = styledContext(
     client.commands.get(interaction.customId === 'giveaway_join' ? 'giveaway' : 'ticket-panel'),
@@ -1013,8 +1110,24 @@ client.on('interactionCreate', async interaction => {
         });
         const closeRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
+            .setCustomId('ticket_add')
+            .setLabel('Add member')
+            .setEmoji('➕')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId('ticket_remove')
+            .setLabel('Remove member')
+            .setEmoji('➖')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId('ticket_call')
+            .setLabel('Call staff')
+            .setEmoji('📣')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
             .setCustomId('ticket_close')
             .setLabel('Close ticket')
+            .setEmoji('🔒')
             .setStyle(ButtonStyle.Danger)
         );
         const prompt = (settings.ticketPrompt || 'Thanks for reaching out, {user}. Please describe your issue.')

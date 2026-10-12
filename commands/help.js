@@ -19,12 +19,17 @@ const CATEGORIES = {
   Utility: {
     description: 'Server details, member info, and everyday tools.',
     emoji: '🔎'
+  },
+  Fun: {
+    description: 'Anime interaction commands like kiss, hug, slap, and kill.',
+    emoji: '🎮'
   }
 };
 
 function commandCategory(command) {
   if (command.category === 'Moderation') return 'Moderation';
   if (command.category === 'Utility') return 'Utility';
+  if (command.category === 'Fun') return 'Fun';
   return 'General';
 }
 
