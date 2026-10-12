@@ -62,6 +62,9 @@ function createDashboardServer(client) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     if (req.headers.origin && origins.has(req.headers.origin)) {
       res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
@@ -187,21 +190,24 @@ function createDashboardServer(client) {
       error.status = 400;
       throw error;
     }
-    const userGuild = (await currentUserGuilds(req.dashboardSession)).find(guild => guild.id === guildId);
+    const session = req.dashboardSession;
+    const userId = session?.user?.id;
+    const userGuild = (await currentUserGuilds(session)).find(guild => guild.id === guildId);
     if (!userGuild) {
       const error = new Error('You are not a member of that server.');
       error.status = 403;
       throw error;
     }
+    const guild = client.guilds.cache.get(guildId);
+    const isOwner = Boolean(guild && userId && guild.ownerId === userId);
     const permissionBit = PermissionFlagsBits[permission];
     const permissionValue = BigInt(userGuild.permissions);
-    const hasAdministrator = (permissionValue & PermissionFlagsBits.Administrator) !== 0n;
+    const hasAdministrator = isOwner || (permissionValue & PermissionFlagsBits.Administrator) !== 0n;
     if (!hasAdministrator && (permissionValue & permissionBit) !== permissionBit) {
       const error = new Error(`You need the ${permission === 'ManageRoles' ? 'Manage Roles' : 'Manage Server'} permission in that server.`);
       error.status = 403;
       throw error;
     }
-    const guild = client.guilds.cache.get(guildId);
     if (!guild) {
       const error = new Error('Lobster is not available in that server. Make sure the bot is invited and online.');
       error.status = 404;
@@ -1134,7 +1140,10 @@ function createDashboardServer(client) {
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
     const status = Number.isInteger(error.status) ? error.status : 400;
-    if (status >= 500) console.error('Dashboard API failed:', error);
+    if (status >= 500) {
+      console.error('Dashboard API failed:', error);
+      return res.status(status).json({ error: 'The dashboard request failed. Please try again.' });
+    }
     res.status(status).json({ error: error.message || 'The dashboard request failed.' });
   });
 
