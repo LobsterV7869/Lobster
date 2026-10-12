@@ -129,14 +129,20 @@ module.exports = {
 
     const ticketEmbed = new EmbedBuilder()
       .setColor(settings.ticketColor || 0xff6b35)
-      .setTitle(settings.ticketTitle || 'How can we help?')
-      .setDescription(settings.ticketMessage || 'Need help? Click below to open a private support ticket.')
-      .setFooter({ text: '🦞 Lobster' });
+      .setAuthor({
+        name: `🎫 ${guild.name} · Support`,
+        iconURL: guild.iconURL() || undefined
+      })
+      .setTitle(settings.ticketTitle || '🎫 Support System')
+      .setDescription(settings.ticketMessage || 'Click the button below to open a private ticket and our team will help you as soon as possible.')
+      .setThumbnail(guild.iconURL({ size: 256 }) || undefined)
+      .setFooter({ text: '🦞 Lobster · Support' })
+      .setTimestamp();
     if (settings.ticketImage) ticketEmbed.setImage(settings.ticketImage);
     const panelRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('ticket_open')
-        .setLabel(settings.ticketButtonLabel || 'Create a ticket')
+        .setLabel(settings.ticketButtonLabel || '📩 Open a ticket')
         .setStyle(ButtonStyle.Primary)
     );
     const previousPanelChannel = guild.channels.cache.get(settings.ticketChannel);

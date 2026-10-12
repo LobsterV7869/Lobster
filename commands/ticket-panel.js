@@ -200,9 +200,15 @@ module.exports = {
     };
     const embed = new EmbedBuilder()
       .setColor(ticketSettings.ticketColor)
+      .setAuthor({
+        name: `🎫 ${guild.name} · Support`,
+        iconURL: guild.iconURL() || undefined
+      })
       .setTitle(ticketSettings.ticketTitle)
       .setDescription(ticketSettings.ticketMessage)
-      .setFooter({ text: '🦞 Lobster' });
+      .setThumbnail(guild.iconURL({ size: 256 }) || undefined)
+      .setFooter({ text: '🦞 Lobster · Support' })
+      .setTimestamp();
     if (ticketSettings.ticketImage) embed.setImage(ticketSettings.ticketImage);
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()

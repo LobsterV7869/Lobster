@@ -190,18 +190,40 @@ function recordWindow(map, key, timestamp, duration) {
   return timestamps.length;
 }
 
-async function logGuildEvent(guild, title, description, color = 0x5865f2, category = 'general') {
+const LOG_META = {
+  general: { emoji: '📋', label: 'General', color: 0x5865f2 },
+  moderation: { emoji: '🔨', label: 'Moderation', color: 0xed4245 },
+  members: { emoji: '👥', label: 'Members', color: 0x5865f2 },
+  messages: { emoji: '💬', label: 'Messages', color: 0x5865f2 },
+  channels: { emoji: '📚', label: 'Channels', color: 0x5865f2 },
+  roles: { emoji: '🎭', label: 'Roles', color: 0xeb459e },
+  voice: { emoji: '🔊', label: 'Voice', color: 0x57f287 },
+  emojis: { emoji: '😄', label: 'Emojis', color: 0xfee75c },
+  levels: { emoji: '📈', label: 'Levels', color: 0x5865f2 },
+  security: { emoji: '🚨', label: 'Security', color: 0xed4245 }
+};
+
+async function logGuildEvent(guild, title, description, color, category = 'general') {
   const settings = db.getSettings(guild.id);
   if (!settings.eventLogsEnabled || settings.eventLogTypes[category] === false) return;
   const channelId = settings.eventLogChannels[category] || settings.auditLogChannel;
   if (!channelId) return;
   const channel = guild.channels.cache.get(channelId);
   if (!channel?.isTextBased()) return;
+  const meta = LOG_META[category] || LOG_META.general;
+  const embed = new EmbedBuilder()
+    .setColor(meta.color)
+    .setAuthor({
+      name: `${meta.emoji} ${meta.label} · ${guild.name}`,
+      iconURL: guild.iconURL() || undefined
+    })
+    .setTitle(title)
+    .setDescription(description)
+    .setFooter({ text: '🦞 Lobster' })
+    .setTimestamp();
   try {
     await channel.send({
-      ...styleCommandPayload('log', guild, {
-        embeds: [new EmbedBuilder().setColor(color).setTitle(title).setDescription(description).setTimestamp()]
-      }),
+      ...styleCommandPayload('log', guild, { embeds: [embed] }),
       allowedMentions: { parse: [] }
     });
   } catch (error) {
@@ -1002,13 +1024,20 @@ client.on('interactionCreate', async interaction => {
           ...styleCommandPayload('ticket-panel', interaction.guild, {
             content: `${interaction.user}`,
             embeds: [new EmbedBuilder()
-              .setTitle('Support request')
+              .setAuthor({
+                name: `🎫 ${interaction.guild.name} · Support`,
+                iconURL: interaction.guild.iconURL() || undefined
+              })
+              .setTitle('🎫 Support request')
               .setDescription(prompt)
               .setColor(0xff6b35)
               .addFields(
-                { name: 'Opened by', value: `${interaction.user}`, inline: true },
-                { name: 'Priority', value: '🟡 Normal', inline: true }
-              )],
+                { name: '👤 Opened by', value: `${interaction.user}`, inline: true },
+                { name: '🕒 Opened', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+                { name: '🚩 Priority', value: '🟡 Normal', inline: true }
+              )
+              .setFooter({ text: 'Use the button below to close this ticket once it is solved.' })
+              .setTimestamp()],
             components: [closeRow],
             allowedMentions: { users: [interaction.user.id] }
           })

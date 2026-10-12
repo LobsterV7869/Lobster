@@ -48,16 +48,16 @@ function defaults(guildId) {
     autorole: null,
     welcomer: 0,
     welcomeChannel: null,
-    welcomeTitle: 'A new member has arrived!',
-    welcomeMessage: 'Welcome {user} to **{server}**! We are glad you are here.',
+    welcomeTitle: '👋 Welcome to {server}!',
+    welcomeMessage: 'Hey {user}, welcome to **{server}**! You are member **#{membercount}**. Please read the rules and say hi in general.',
     welcomeImage: null,
     welcomeThumbnail: null,
     welcomeColor: '#FF6B35',
-    welcomeFooter: 'Member #{membercount}',
+    welcomeFooter: '🦞 Lobster • Member #{membercount}',
     welcomeServerAddress: null,
     farewellEnabled: 0,
     farewellChannel: null,
-    farewellMessage: '{username} has left {server}. We will miss you!',
+    farewellMessage: '**{username}** has left {server}. We will miss you!',
     automod: 0,
     automodRules: {
       links: true,
@@ -134,11 +134,16 @@ function defaults(guildId) {
     ticketChannel: null,
     ticketCategory: null,
     ticketAdminRole: null,
-    ticketMessage: 'Need help from our team? Open a private ticket and we will get back to you as soon as we can.',
-    ticketPrompt: 'Hi {user}! Please describe your issue in detail. A member of our team will be with you shortly.',
+    ticketMessage: 'Click the button below to open a private ticket and our team will help you as soon as possible.\n\n'
+      + '• Do not open tickets without a reason\n'
+      + '• Explain your issue clearly\n'
+      + '• Respect the staff\n'
+      + '• Close the ticket once solved\n'
+      + '• Spam and abuse are forbidden',
+    ticketPrompt: 'Thanks for opening a ticket, {user}! Please describe your issue in detail and a member of our team will help you as soon as possible.',
     ticketImage: null,
-    ticketTitle: 'How can we help?',
-    ticketButtonLabel: 'Create a ticket',
+    ticketTitle: '🎫 Support System',
+    ticketButtonLabel: '📩 Open a ticket',
     ticketColor: '#FF6B35',
     ticketPanelMessageId: null,
     ticketTranscriptChannel: null,

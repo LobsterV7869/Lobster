@@ -1,13 +1,35 @@
 const { EmbedBuilder } = require('discord.js');
 
+function hexToInt(value, fallback) {
+  if (typeof value !== 'string') return fallback;
+  const match = value.trim().match(/^#?([\da-f]{6})$/i);
+  return match ? parseInt(match[1], 16) : fallback;
+}
+
+function ordinal(number) {
+  const remainder100 = number % 100;
+  if (remainder100 >= 11 && remainder100 <= 13) return `${number}th`;
+  switch (number % 10) {
+    case 1: return `${number}st`;
+    case 2: return `${number}nd`;
+    case 3: return `${number}rd`;
+    default: return `${number}th`;
+  }
+}
+
 function welcomeEmbed(member, settings) {
   const createdAt = Math.floor(member.user.createdTimestamp / 1000);
-  const joinedAt = Math.floor(member.joinedTimestamp / 1000);
+  const joinedAt = member.joinedTimestamp
+    ? Math.floor(member.joinedTimestamp / 1000)
+    : Math.floor(Date.now() / 1000);
+  const memberCount = member.guild.memberCount;
   const placeholders = {
     '{user}': `${member}`,
     '{username}': member.user.username,
+    '{tag}': member.user.tag,
     '{server}': member.guild.name,
-    '{membercount}': `${member.guild.memberCount}`,
+    '{membercount}': `${memberCount}`,
+    '{ordinal}': ordinal(memberCount),
     '{created}': `<t:${createdAt}:R>`,
     '{joined}': `<t:${joinedAt}:R>`,
     '{id}': member.id
@@ -24,27 +46,32 @@ function welcomeEmbed(member, settings) {
   };
 
   const embed = new EmbedBuilder()
-    .setColor(0xff6b35)
+    .setColor(hexToInt(settings.welcomeColor, 0xff6b35))
     .setAuthor({
-      name: `${member.guild.name} • Welcome`,
+      name: `👋 Welcome to ${member.guild.name}`,
       iconURL: member.guild.iconURL() || undefined
     })
-    .setTitle(`🦞 ${(settings.welcomeTitle || 'A new member has arrived!').slice(0, 250)}`)
-    .setDescription(format(settings.welcomeMessage))
+    .setTitle(format(settings.welcomeTitle) || `👋 Welcome, ${member.user.username}!`)
+    .setDescription(format(settings.welcomeMessage)
+      || `Hey ${member}, welcome to **${member.guild.name}**! You are our **${ordinal(memberCount)}** member.`)
     .setThumbnail(validUrl(settings.welcomeThumbnail)
       ? settings.welcomeThumbnail
       : member.user.displayAvatarURL({ size: 256 }))
+    .addFields(
+      { name: '👤 Member', value: `${member}`, inline: true },
+      { name: '🔢 Join position', value: `#${memberCount.toLocaleString()} (${ordinal(memberCount)})`, inline: true },
+      { name: '🕒 Account age', value: `<t:${createdAt}:R>`, inline: true },
+      { name: '📅 Account created', value: `<t:${createdAt}:D>`, inline: true },
+      { name: '📥 Joined server', value: `<t:${joinedAt}:D>`, inline: true }
+    )
+    .setFooter({ text: format(settings.welcomeFooter) || '🦞 Lobster' })
     .setTimestamp();
 
   if (validUrl(settings.welcomeImage)) embed.setImage(settings.welcomeImage);
 
-  embed.setFooter({ text: '🦞 Lobster' });
-
-  embed.addFields(
-    { name: '👥 Members', value: `#${member.guild.memberCount.toLocaleString()}`, inline: true },
-    { name: '📅 Account created', value: `<t:${createdAt}:R>`, inline: true },
-    { name: '🗓️ Joined server', value: `<t:${joinedAt}:R>`, inline: true }
-  );
+  if (Date.now() - member.user.createdTimestamp < 7 * 86400000) {
+    embed.addFields({ name: '⚠️ New account', value: 'This account is less than 7 days old.', inline: false });
+  }
   if (settings.welcomeServerAddress) {
     embed.addFields({
       name: '🎮 Server address',
