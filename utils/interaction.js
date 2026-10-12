@@ -92,11 +92,11 @@ function buildInteractionEmbed(action, author, target, gif) {
   return embed;
 }
 
-function createInteractionCommand(action) {
+function createInteractionCommand(action, name = action) {
   const meta = INTERACTIONS[action];
   return {
     data: new SlashCommandBuilder()
-      .setName(action)
+      .setName(name)
       .setDescription(meta.description)
       .addUserOption(option => option
         .setName('user')
@@ -112,7 +112,7 @@ function createInteractionCommand(action) {
           || (args[0] ? await guild.client.users.fetch(args[0].replace(/\D/g, '')).catch(() => null) : null);
       }
       if (!target) {
-        const warning = `Mention a member to use this command, for example \`/${action} user:@someone\`.`;
+        const warning = `Mention a member to use this command, for example \`/${name} user:@someone\`.`;
         return isSlash ? interaction.reply({ content: warning, ephemeral: true }) : message.reply(warning);
       }
       const author = isSlash ? interaction.user : message.author;
