@@ -6,11 +6,68 @@ const LOBSTER_ORANGE = 0xff6b35;
 const LOBSTER_FOOTER = '🦞 Lobster';
 const MAX_DESCRIPTION = 4000;
 const MAX_EMBEDS = 10;
+const MAX_FOOTER = 2000;
 
-function normalizeEmbed(value) {
+const CATEGORY_STYLE = {
+  General: { emoji: '🛠️', color: 0xff6b35 },
+  Moderation: { emoji: '🛡️', color: 0xed4245 },
+  Security: { emoji: '🔒', color: 0x992d22 },
+  Utility: { emoji: '🔎', color: 0x5865f2 },
+  Configuration: { emoji: '⚙️', color: 0x1abc9c },
+  Community: { emoji: '👥', color: 0x9b59b6 },
+  Music: { emoji: '🎵', color: 0x1db954 },
+  Fun: { emoji: '🎮', color: 0xeb459e }
+};
+
+const COMMAND_TITLES = {
+  nowplaying: 'Now Playing',
+  userinfo: 'User Info',
+  serverinfo: 'Server Info',
+  roleinfo: 'Role Info',
+  botinfo: 'Bot Info',
+  membercount: 'Member Count',
+  servericon: 'Server Icon',
+  addrole: 'Add Role',
+  removerole: 'Remove Role',
+  slowmode: 'Slow Mode',
+  reactionrole: 'Reaction Roles',
+  autoresponse: 'Auto Responses',
+  automod: 'Auto Moderation',
+  auditlog: 'Audit Log',
+  antiself: 'Anti Self-Bot',
+  autorole: 'Auto Role'
+};
+
+function styleFor(command) {
+  const category = command?.category;
+  return (category && CATEGORY_STYLE[category]) || CATEGORY_STYLE.General;
+}
+
+function humanize(name) {
+  return String(name)
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, character => character.toUpperCase());
+}
+
+function commandHeading(command) {
+  const style = styleFor(command);
+  const name = command?.data?.name;
+  if (!name) return `${style.emoji} Lobster`;
+  return `${style.emoji} ${COMMAND_TITLES[name] || humanize(name)}`;
+}
+
+function footerText(command) {
+  const description = command?.data?.description?.trim();
+  if (!description) return LOBSTER_FOOTER;
+  return `${LOBSTER_FOOTER} · ${description.slice(0, MAX_FOOTER - LOBSTER_FOOTER.length - 3)}`;
+}
+
+function normalizeEmbed(value, command) {
   const embed = value instanceof EmbedBuilder ? value : EmbedBuilder.from(value);
-  if (!embed.data.color && embed.data.color !== 0) embed.setColor(LOBSTER_ORANGE);
+  if (!embed.data.color && embed.data.color !== 0) embed.setColor(styleFor(command).color);
   if (!embed.data.footer) embed.setFooter({ text: LOBSTER_FOOTER });
+  if (!embed.data.timestamp) embed.setTimestamp();
   return embed;
 }
 
@@ -41,20 +98,26 @@ function chunkText(text) {
   return chunks;
 }
 
-function textEmbeds(text) {
+function textEmbeds(text, command) {
+  const style = styleFor(command);
   return chunkText(text)
     .slice(0, MAX_EMBEDS)
-    .map(chunk => new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
-      .setDescription(chunk)
-      .setFooter({ text: LOBSTER_FOOTER }));
+    .map((chunk, index) => {
+      const embed = new EmbedBuilder()
+        .setColor(style.color)
+        .setDescription(chunk)
+        .setFooter({ text: footerText(command) })
+        .setTimestamp();
+      if (index === 0) embed.setTitle(commandHeading(command));
+      return embed;
+    });
 }
 
 function stylePayload(command, payload) {
   const normalized = typeof payload === 'string' ? { content: payload } : { ...payload };
 
   if (Array.isArray(normalized.embeds) && normalized.embeds.length) {
-    normalized.embeds = normalized.embeds.slice(0, MAX_EMBEDS).map(normalizeEmbed);
+    normalized.embeds = normalized.embeds.slice(0, MAX_EMBEDS).map(embed => normalizeEmbed(embed, command));
     return normalized;
   }
 
@@ -65,7 +128,7 @@ function stylePayload(command, payload) {
     return normalized;
   }
 
-  normalized.embeds = textEmbeds(text);
+  normalized.embeds = textEmbeds(text, command);
   delete normalized.content;
   return normalized;
 }
@@ -133,4 +196,4 @@ function styledContext(command, context) {
   return styled;
 }
 
-module.exports = { LOBSTER_ORANGE, LOBSTER_FOOTER, stylePayload, styledContext };
+module.exports = { LOBSTER_ORANGE, LOBSTER_FOOTER, CATEGORY_STYLE, stylePayload, styledContext };

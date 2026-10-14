@@ -54,6 +54,7 @@ function overviewEmbed(client, prefix) {
     .setColor(LOBSTER_ORANGE)
     .setAuthor({ name: 'Lobster · Help centre', iconURL: client.user.displayAvatarURL() })
     .setTitle('🦞 Lobster Commands')
+    .setThumbnail(client.user.displayAvatarURL({ size: 256 }))
     .setDescription([
       `Everything Lobster can do, grouped by category. Pick one from the menu below.`,
       `**Prefix:** \`${prefix}\` · **Slash:** \`/\``,

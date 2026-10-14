@@ -9,7 +9,7 @@ module.exports = {
   botPermissions: [PermissionFlagsBits.Connect],
   async run({ interaction, message, isSlash, member, guild }) {
     const vc = member.voice.channel;
-    if (!vc) return isSlash ? interaction.reply('You need to be in a voice channel!') : message.reply('You need to be in a voice channel!');
+    if (!vc) return isSlash ? interaction.reply('🔊 Join a voice channel first, then ask me to join.') : message.reply('🔊 Join a voice channel first, then ask me to join.');
 
     joinVoiceChannel({
       channelId: vc.id,
@@ -17,7 +17,7 @@ module.exports = {
       adapterCreator: guild.voiceAdapterCreator,
     });
 
-    if (isSlash) await interaction.reply(`✅ Joined **${vc.name}**`);
-    else await message.reply(`✅ Joined **${vc.name}**`);
+    if (isSlash) await interaction.reply(`✅ Joined **${vc.name}**.`);
+    else await message.reply(`✅ Joined **${vc.name}**.`);
   }
 };

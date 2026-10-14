@@ -14,7 +14,7 @@ module.exports = {
     }
     const emoji = client.emojis.cache.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
 
-    if (!emoji) return isSlash ? interaction.reply('Emoji not found') : message.reply('Emoji not found');
+    if (!emoji) return isSlash ? interaction.reply('❌ No emoji matched that name.') : message.reply('❌ No emoji matched that name.');
 
     if (isSlash) await interaction.reply(`${emoji}`);
     else await message.reply(`${emoji}`);

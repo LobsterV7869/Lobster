@@ -24,23 +24,23 @@ async function executeCommand(command, context) {
   const { guild, member, user, isSlash } = context;
 
   if (command.guildOnly && !guild) {
-    return reply(context, 'This command can only be used in a server.', true);
+    return reply(context, '🌐 This command can only be used in a server.', true);
   }
 
   if (command.ownerOnly && (!process.env.OWNER_ID || user.id !== process.env.OWNER_ID)) {
-    return reply(context, 'This command is restricted to the bot owner.', true);
+    return reply(context, '🔒 This command is restricted to the bot owner.', true);
   }
 
   if (command.permissions?.length && !member?.permissions?.has(command.permissions)) {
     const required = permissionNames(command.permissions).join(', ');
-    return reply(context, `You need the following permission${command.permissions.length > 1 ? 's' : ''}: ${required}.`, true);
+    return reply(context, `🚫 You need the **${required}** permission${command.permissions.length > 1 ? 's' : ''} to use this command.`, true);
   }
 
   if (command.botPermissions?.length) {
     const botMember = guild?.members.me;
     if (!botMember?.permissions.has(command.botPermissions)) {
       const required = permissionNames(command.botPermissions).join(', ');
-      return reply(context, `I need the following permission${command.botPermissions.length > 1 ? 's' : ''}: ${required}.`, true);
+      return reply(context, `⚠️ I need the **${required}** permission${command.botPermissions.length > 1 ? 's' : ''} to run this command.`, true);
     }
   }
 
@@ -48,7 +48,7 @@ async function executeCommand(command, context) {
     return await command.run(context);
   } catch (error) {
     console.error(`Command "${command.data.name}" failed:`, error);
-    const content = 'I could not run that command. Check my permissions and try again.';
+    const content = '⚠️ I could not run that command. Please check my permissions and try again.';
     if (isSlash) {
       if (context.interaction.deferred || context.interaction.replied) {
         return context.interaction.followUp({ content, ephemeral: true });

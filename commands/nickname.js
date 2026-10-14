@@ -20,7 +20,7 @@ module.exports = {
       name = args.slice(1).join(' ');
     }
 
-    if (!member) return isSlash ? interaction.reply('Member not found') : message.reply('Member not found');
+    if (!member) return isSlash ? interaction.reply('❌ I could not find that member.') : message.reply('❌ I could not find that member.');
     if (name?.length > 32) {
       const response = 'Nicknames must be 32 characters or fewer.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
@@ -31,7 +31,7 @@ module.exports = {
       : message.reply(hierarchyError);
 
     await member.setNickname(name || null);
-    const embed = new EmbedBuilder().setColor('#00ff00').setDescription(`✅ Nickname ${name ? `set to **${name}**` : 'reset'} for ${member}`);
+    const embed = new EmbedBuilder().setColor(0x57f287).setDescription(`✅ Nickname ${name ? `set to **${name}**` : 'reset'} for ${member}.`);
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });
   }

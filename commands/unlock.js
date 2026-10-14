@@ -18,7 +18,7 @@ module.exports = {
     await channel.permissionOverwrites.edit(guild.id, { SendMessages: lockedChannels[channel.id] });
     delete lockedChannels[channel.id];
     db.updateSetting(guild.id, 'lockedChannels', lockedChannels);
-    const embed = new EmbedBuilder().setColor('#00ff00').setDescription('🔓 Channel has been unlocked');
+    const embed = new EmbedBuilder().setColor(0x57f287).setDescription('🔓 This channel has been unlocked.');
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });
   }

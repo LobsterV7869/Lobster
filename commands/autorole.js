@@ -40,7 +40,7 @@ module.exports = {
     }
 
     db.updateSetting(guild.id, 'autorole', role.id);
-    const embed = new EmbedBuilder().setColor('#00ff00').setDescription(`✅ Autorole system enabled. New members will get ${role}.`);
+    const embed = new EmbedBuilder().setColor(0x57f287).setDescription(`✅ Autorole system enabled. New members will get ${role}.`);
     
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });

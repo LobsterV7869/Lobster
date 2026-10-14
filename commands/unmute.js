@@ -14,14 +14,14 @@ module.exports = {
     if (isSlash) member = interaction.options.getMember('target');
     else member = message.mentions.members.first() || guild.members.cache.get(args[0]);
 
-    if (!member) return isSlash ? interaction.reply('Member not found') : message.reply('Member not found');
+    if (!member) return isSlash ? interaction.reply('❌ I could not find that member.') : message.reply('❌ I could not find that member.');
     const hierarchyError = memberHierarchyError(actor, member, guild);
     if (hierarchyError) return isSlash
       ? interaction.reply({ content: hierarchyError, ephemeral: true })
       : message.reply(hierarchyError);
 
     await member.timeout(null);
-    const embed = new EmbedBuilder().setColor('#00ff00').setDescription(`✅ Removed timeout for **${member.user.tag}**`);
+    const embed = new EmbedBuilder().setColor(0x57f287).setDescription(`✅ Removed timeout for **${member.user.tag}**.`);
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });
   }

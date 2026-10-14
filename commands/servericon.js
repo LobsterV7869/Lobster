@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Show server icon'),
   category: 'Utility',
   async run({ guild, interaction, message, isSlash }) {
-    if (!guild.icon) return isSlash ? interaction.reply('Server has no icon') : message.reply('Server has no icon');
+    if (!guild.icon) return isSlash ? interaction.reply('🖼️ This server has no icon set.') : message.reply('🖼️ This server has no icon set.');
 
     const embed = new EmbedBuilder()
       .setColor(LOBSTER_ORANGE)

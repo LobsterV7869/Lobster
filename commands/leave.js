@@ -8,7 +8,7 @@ module.exports = {
   category: 'General',
   async run({ interaction, message, isSlash, guild }) {
     const connection = getVoiceConnection(guild.id);
-    if (!connection) return isSlash ? interaction.reply('I am not in a voice channel!') : message.reply('I am not in a voice channel!');
+    if (!connection) return isSlash ? interaction.reply('🔇 I am not in a voice channel right now.') : message.reply('🔇 I am not in a voice channel right now.');
 
     connection.destroy();
     if (isSlash) await interaction.reply('✅ Left the voice channel.');

@@ -25,7 +25,7 @@ The optional join-rate guard kicks additional eligible joiners after a configura
 
 For static hosts that support a `_headers` file (such as Cloudflare Pages or Netlify), `~/Site/_headers` applies clickjacking and browser security headers. GitHub Pages does not apply this file; for GitHub Pages, serve the dashboard through a proxy/CDN that sets the headers described there. The dashboard also refuses to run when embedded as a best-effort fallback.
 
-Every command reply is sent as a Lobster-styled embed card with the orange `#FF6B35` accent and a `🦞 Lobster` footer; short text replies are wrapped automatically. `/userinfo`, `/serverinfo`, and `/roleinfo` show expanded member, server, and role profiles.
+Every command reply is sent as a Lobster-styled embed card with a `🦞 Lobster` footer and a title that names the command; short text replies are wrapped automatically. Each command's accent colour is chosen from its category (orange for general, red for moderation, blurple for utility, teal for configuration, purple for community, green for music, pink for fun). `/userinfo`, `/serverinfo`, and `/roleinfo` show expanded member, server, and role profiles.
 
 ## First server setup
 

@@ -20,12 +20,12 @@ module.exports = {
       role = message.mentions.roles.first() || guild.roles.cache.get(args[1]);
     }
 
-    if (!member || !role) return isSlash ? interaction.reply('Member or Role not found') : message.reply('Member or Role not found');
+    if (!member || !role) return isSlash ? interaction.reply('❌ I could not find that member or role.') : message.reply('❌ I could not find that member or role.');
     const targetError = roleHierarchyError(actor, role, guild);
     if (targetError) return isSlash ? interaction.reply({ content: targetError, ephemeral: true }) : message.reply(targetError);
 
     await member.roles.remove(role);
-    const embed = new EmbedBuilder().setColor('#ff0000').setDescription(`✅ Removed ${role} from ${member}`);
+    const embed = new EmbedBuilder().setColor(0x57f287).setDescription(`✅ Removed ${role} from ${member}.`);
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });
   }

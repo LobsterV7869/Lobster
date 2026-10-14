@@ -19,7 +19,7 @@ module.exports = {
     db.updateSetting(guild.id, 'register', newState);
 
     const embed = new EmbedBuilder()
-      .setColor(newState ? '#00ff00' : '#ff0000')
+      .setColor(newState ? 0x57f287 : 0xed4245)
       .setDescription(`✅ Register system is now **${newState ? 'Enabled' : 'Disabled'}**`);
     
     if (isSlash) await interaction.reply({ embeds: [embed] });

@@ -12,7 +12,7 @@ module.exports = {
     if (isSlash) user = interaction.options.getUser('target') || interaction.user;
     else user = message.mentions.users.first() || (args[0] ? await guild.client.users.fetch(args[0]).catch(() => null) : message.author);
 
-    if (!user) return isSlash ? interaction.reply('User not found') : message.reply('User not found');
+    if (!user) return isSlash ? interaction.reply('❌ I could not find that user.') : message.reply('❌ I could not find that user.');
 
     const embed = new EmbedBuilder()
       .setColor(LOBSTER_ORANGE)

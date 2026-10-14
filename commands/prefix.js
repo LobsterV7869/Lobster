@@ -25,8 +25,8 @@ module.exports = {
     db.updateSetting(guild.id, 'prefix', newPrefix);
 
     const embed = new EmbedBuilder()
-      .setColor('#00ff00')
-      .setDescription(`✅ Prefix updated to: \`${newPrefix}\``);
+      .setColor(0x57f287)
+      .setDescription(`✅ Prefix updated to \`${newPrefix}\`.`);
     
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });

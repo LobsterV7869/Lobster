@@ -17,7 +17,7 @@ module.exports = {
     }
 
     await channel.setRateLimitPerUser(seconds);
-    const embed = new EmbedBuilder().setColor('#00ff00').setDescription(`✅ Slowmode set to **${seconds}s**`);
+    const embed = new EmbedBuilder().setColor(0x57f287).setDescription(`✅ Slowmode set to **${seconds}s**.`);
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });
   }

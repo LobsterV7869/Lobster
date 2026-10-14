@@ -18,7 +18,9 @@ function compatibilityLine(score) {
 
 function shipPayload(first, second, score, image, requesterId) {
   const embed = new EmbedBuilder()
-    .setColor('#e94d98')
+    .setColor(0xeb459e)
+    .setAuthor({ name: 'Lobster · Ship' })
+    .setTitle('💞 Compatibility')
     .setDescription(`**${first}**  ×  **${second}**\n${compatibilityLine(score)}\n\n*${score}% compatibility · just for fun*`)
     .setImage('attachment://lobster-ship.png');
   const row = new ActionRowBuilder().addComponents(
