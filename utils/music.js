@@ -122,7 +122,7 @@ function probeStreamable(url) {
   return new Promise(resolve => {
     const child = spawn(YTDLP_PATH, [
       '-f', 'bestaudio/best',
-      '-o', '-',
+      '-g',
       '--no-playlist',
       '--no-warnings',
       ...commonArgs(),
