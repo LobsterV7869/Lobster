@@ -15,9 +15,30 @@ const {
 
 const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
 const IDLE_LEAVE_MS = 60000;
+const COOKIES_PATH = process.env.YTDLP_COOKIES || '';
+const PROBE_TIMEOUT_MS = Number(process.env.YTDLP_PROBE_TIMEOUT_MS) || 25000;
+
+let ffmpegPath = process.env.YTDLP_FFMPEG || '';
+if (!ffmpegPath) {
+  try {
+    const ffmpegStatic = require('ffmpeg-static');
+    ffmpegPath = ffmpegStatic?.path || ffmpegStatic || '';
+  } catch {
+    ffmpegPath = '';
+  }
+}
 
 const queues = new Map();
 const intentional = new WeakSet();
+
+let youtubeUnavailable = false;
+
+function commonArgs() {
+  const args = [];
+  if (COOKIES_PATH) args.push('--cookies', COOKIES_PATH);
+  if (ffmpegPath) args.push('--ffmpeg-location', ffmpegPath);
+  return args;
+}
 
 function formatDuration(totalSeconds) {
   if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return 'live';
@@ -30,7 +51,7 @@ function formatDuration(totalSeconds) {
 
 function runYtdlp(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(YTDLP_PATH, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(YTDLP_PATH, [...args, ...commonArgs()], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', chunk => { stdout += chunk; });
@@ -50,6 +71,10 @@ function runYtdlp(args) {
   });
 }
 
+function isSoundCloudTarget(target) {
+  return /soundcloud\.com/i.test(target) || /^scsearch/i.test(target);
+}
+
 async function resolveTarget(input) {
   if (/open\.spotify\.com/i.test(input)) {
     const parsed = new URL(input);
@@ -61,14 +86,13 @@ async function resolveTarget(input) {
     if (!response.ok) throw new Error('Could not read that Spotify track.');
     const { title } = await response.json();
     if (!title) throw new Error('Could not read that Spotify track.');
-    return { target: `ytsearch1:${title}`, source: 'spotify' };
+    return { target: `ytsearch1:${title}`, source: 'spotify', query: title };
   }
-  if (/^https?:\/\//i.test(input)) return { target: input, source: 'url' };
-  return { target: `ytsearch1:${input}`, source: 'search' };
+  if (/^https?:\/\//i.test(input)) return { target: input, source: 'url', query: null };
+  return { target: `ytsearch1:${input}`, source: 'search', query: input };
 }
 
-async function fetchTrack(input, requestedBy) {
-  const { target, source } = await resolveTarget(input);
+async function loadMeta(target) {
   const output = await runYtdlp([
     '--dump-single-json', '--flat-playlist', '--no-warnings', '--no-playlist', target
   ]);
@@ -81,20 +105,99 @@ async function fetchTrack(input, requestedBy) {
   const entry = payload.entries ? payload.entries[0] : payload;
   if (!entry) throw new Error('I could not find anything for that search.');
   const id = entry.id || null;
-  const url = entry.url || (id ? `https://www.youtube.com/watch?v=${id}` : null);
+  const rawUrl = typeof entry.url === 'string' && !/api\.soundcloud\.com/i.test(entry.url) ? entry.url : null;
+  const url = entry.webpage_url || entry.original_url || rawUrl
+    || (id ? `https://www.youtube.com/watch?v=${id}` : null);
   if (!url) throw new Error('I could not resolve a playable URL for that track.');
   const duration = Number.isFinite(entry.duration) ? entry.duration : null;
-  const thumbnail = entry.thumbnail
-    || (id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null);
-  return {
-    id,
-    title: entry.title || 'Unknown title',
-    url,
-    duration,
-    thumbnail,
-    source,
-    requestedBy
-  };
+  let thumbnail = entry.thumbnail || entry.thumbnails?.[0]?.url || null;
+  const ytMatch = url.match(/[?&]v=([\w-]{6,})/);
+  if (!thumbnail && ytMatch) thumbnail = `https://i.ytimg.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+  return { id, title: entry.title || 'Unknown title', url, duration, thumbnail };
+}
+
+function probeStreamable(url) {
+  return new Promise(resolve => {
+    const child = spawn(YTDLP_PATH, [
+      '-f', 'bestaudio/best',
+      '-o', '-',
+      '--no-playlist',
+      '--no-warnings',
+      ...commonArgs(),
+      url
+    ], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let settled = false;
+    let stderr = '';
+    const finish = (ok, error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { child.kill('SIGKILL'); } catch { /* already gone */ }
+      resolve({ ok, error: error || '' });
+    };
+    const timer = setTimeout(() => finish(false, 'The audio source timed out.'), PROBE_TIMEOUT_MS);
+    child.stdout.once('data', () => finish(true));
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.once('error', error => finish(false, error.message));
+    child.once('close', code => finish(false,
+      stderr.trim().split('\n').filter(Boolean).pop() || `yt-dlp exited with code ${code}.`));
+  });
+}
+
+function friendlySourceError(message) {
+  if (/not a bot|sign in to confirm|cookies/i.test(message)) {
+    return 'the audio host is asking this server to sign in';
+  }
+  return message;
+}
+
+async function fetchTrack(input, requestedBy) {
+  const primary = await resolveTarget(input);
+  const primaryProvider = isSoundCloudTarget(primary.target) ? 'soundcloud' : 'youtube';
+  const canSkipPrimary = youtubeUnavailable && primaryProvider === 'youtube' && primary.query;
+
+  let primaryMeta = null;
+  if (!canSkipPrimary) {
+    try { primaryMeta = await loadMeta(primary.target); } catch { primaryMeta = null; }
+  }
+
+  const attempts = [];
+  if (primaryMeta && !(youtubeUnavailable && primaryProvider === 'youtube')) {
+    attempts.push({ meta: primaryMeta, provider: primaryProvider, source: primary.source });
+  }
+
+  const fallbackQuery = primary.query || primaryMeta?.title || null;
+  if (fallbackQuery && primaryProvider !== 'soundcloud') {
+    try {
+      const meta = await loadMeta(`scsearch1:${fallbackQuery}`);
+      attempts.push({ meta, provider: 'soundcloud', source: 'soundcloud' });
+    } catch { /* no fallback available */ }
+  }
+
+  if (!attempts.length) throw new Error('I could not find anything for that search.');
+
+  let lastError = 'I could not find a playable stream for that track.';
+  for (const attempt of attempts) {
+    const probe = await probeStreamable(attempt.meta.url);
+    if (probe.ok) {
+      if (attempt.provider === 'youtube') youtubeUnavailable = false;
+      return {
+        id: attempt.meta.id,
+        title: attempt.meta.title,
+        url: attempt.meta.url,
+        duration: attempt.meta.duration,
+        thumbnail: attempt.meta.thumbnail,
+        source: attempt.source,
+        requestedBy
+      };
+    }
+    if (attempt.provider === 'youtube') youtubeUnavailable = true;
+    lastError = friendlySourceError(probe.error);
+  }
+
+  throw new Error(youtubeUnavailable
+    ? `${lastError}. Try a different song or a SoundCloud link.`
+    : lastError);
 }
 
 function destroyStream(queue) {
@@ -167,11 +270,20 @@ function startTrack(guild, queue, track) {
     '-o', '-',
     '--no-playlist',
     '--no-warnings',
+    ...commonArgs(),
     track.url
-  ], { stdio: ['ignore', 'pipe', 'ignore'] });
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
   queue.stream = child;
+  let stderr = '';
+  child.stderr.on('data', chunk => { stderr += chunk; });
   child.on('error', error => {
     console.error(`yt-dlp could not start for ${track.url}:`, error.message);
+  });
+  child.on('close', code => {
+    if (code) {
+      const detail = stderr.trim().split('\n').filter(Boolean).pop() || `code ${code}`;
+      console.error(`yt-dlp stream failed for ${track.url}: ${detail}`);
+    }
   });
   const resource = createAudioResource(child.stdout, {
     inputType: StreamType.Arbitrary,
@@ -329,6 +441,7 @@ function getState(guild) {
 
 module.exports = {
   formatDuration,
+  fetchTrack,
   enqueue,
   skip,
   stop,
