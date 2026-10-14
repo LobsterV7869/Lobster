@@ -20,6 +20,10 @@ const CATEGORIES = {
     description: 'Server details, member info, and everyday tools.',
     emoji: '🔎'
   },
+  Music: {
+    description: 'Play and queue music in your voice channels.',
+    emoji: '🎵'
+  },
   Fun: {
     description: 'Anime interaction commands like kiss, hug, slap, and kill.',
     emoji: '🎮'
@@ -29,6 +33,7 @@ const CATEGORIES = {
 function commandCategory(command) {
   if (command.category === 'Moderation') return 'Moderation';
   if (command.category === 'Utility') return 'Utility';
+  if (command.category === 'Music') return 'Music';
   if (command.category === 'Fun') return 'Fun';
   return 'General';
 }

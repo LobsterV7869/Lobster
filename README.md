@@ -51,6 +51,7 @@ Only the newest successful compressed JSON backup is retained on the bot host. `
 - **Reaction roles:** Post an announcement or a custom embed, then use `/reactionrole add` with its channel, message ID, emoji, and role. Members gain or lose that role by adding or removing the reaction.
 - **Embeds:** `/embed` sends a custom announcement embed. Use `/help` for the current prefix equivalents and arguments.
 - **Ship cards:** `/ship` or `p ship` makes a playful compatibility card for two server members. Mention one member to pair them with yourself or mention two to compare those members; with no targets Lobster picks a cached server member if one is available. The card includes a random score and “Ship again” and owner-only “Delete” buttons. ImageMagick must be installed on the bot host to render the PNG card (for example, `sudo apt install imagemagick` on Debian/Ubuntu).
+- **Music:** `/play query:<song or link>` joins your voice channel and plays the first match. Search by name, paste a YouTube (or other yt-dlp-supported) link, or paste a Spotify track link and Lobster resolves it through a search. `/play` accepts a `next` option to jump the queue. Use `/skip`, `/stop`, `/pause`, `/queue`, `/nowplaying`, and `/volume` (0–200%) to control playback. The bot host needs the `yt-dlp` binary (set `YTDLP_PATH` to override its location); Lobster leaves the channel after a minute of inactivity.
 
 Prefix examples for configuration:
 
