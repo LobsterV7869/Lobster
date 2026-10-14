@@ -270,8 +270,8 @@ module.exports = {
         'Use `{user}`, `{username}`, `{server}`, `{membercount}`, `{created}`, and `{joined}` in text.'
       )
       .addFields({
-        name: 'Prefix example',
-        value: `\`${updatedSettings.prefix} welcomer #welcome --title "Welcome aboard!" --message "Welcome {user} to {server}!" --image https://example.com/banner.png\``
+        name: 'Prefix command',
+        value: `\`${updatedSettings.prefix} welcomer [channel] --title "..." --message "..." --image <url>\``
       }, {
         name: 'Farewell cards',
         value: `**${updatedSettings.farewellEnabled ? 'Enabled' : 'Disabled'}**${updatedSettings.farewellChannel ? ` in <#${updatedSettings.farewellChannel}>` : ''}. Configure with \`farewell_enabled\` and \`farewell_message\`.`

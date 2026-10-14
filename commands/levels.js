@@ -46,7 +46,7 @@ module.exports = {
         `Level-up announcements: ${announceChannel || 'the channel where the member chatted'}.`
       )
       .addFields({
-        name: 'Prefix examples',
+        name: 'Prefix commands',
         value: `\`${updated.prefix} levels on\`\n\`${updated.prefix} levels off\`\n\`${updated.prefix} levels #announcements\``
       });
     return isSlash

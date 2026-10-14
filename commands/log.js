@@ -117,7 +117,7 @@ module.exports = {
     }
     const hasDedicatedChannel = Object.values(settings.eventLogChannels).some(Boolean);
     if (loggingEnabled === true && !targetChannel && !hasDedicatedChannel) {
-      const response = 'Choose a log channel first, for example `p log #logs`.';
+      const response = 'Choose a log channel first.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 
@@ -154,7 +154,7 @@ module.exports = {
       .setAuthor({ name: 'Lobster · Server logs' })
       .setTitle('📋 Log settings')
       .setDescription(`${hasActiveChannel ? `**Main log channel:** ${mainChannel || 'Not set'} · Dedicated channels override this per category.` : '**Logging is disabled.** Set a main channel with \`/log channel:#logs\` or assign channels by category.'}\n\n${lines.join('\n')}`)
-      .setFooter({ text: 'Example: p log moderation #mod-log · Use “default” to clear a category channel. Event logs do not copy message contents.' });
+      .setFooter({ text: 'Use “default” to clear a category channel. Event logs do not copy message contents.' });
     return isSlash
       ? interaction.reply({ embeds: [embed], ephemeral: true })
       : message.reply({ embeds: [embed] });

@@ -112,7 +112,7 @@ function createInteractionCommand(action, name = action) {
           || (args[0] ? await guild.client.users.fetch(args[0].replace(/\D/g, '')).catch(() => null) : null);
       }
       if (!target) {
-        const warning = `Mention a member to use this command, for example \`/${name} user:@someone\`.`;
+        const warning = 'Mention the member you want to target.';
         return isSlash ? interaction.reply({ content: warning, ephemeral: true }) : message.reply(warning);
       }
       const author = isSlash ? interaction.user : message.author;

@@ -129,7 +129,7 @@ module.exports = {
     }
 
     if (!staffRole || staffRole.id === guild.id || staffRole.managed) {
-      const response = 'Choose a regular staff role (not @everyone or an integration-managed role). Example: `/ticket-panel staff_role:@Support`.';
+      const response = 'Choose a regular staff role (not @everyone or an integration-managed role).';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!targetChannel?.isTextBased() || !targetChannel.messages) {

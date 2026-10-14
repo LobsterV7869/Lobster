@@ -20,7 +20,7 @@ module.exports = {
     const playNext = isSlash ? Boolean(interaction.options.getBoolean('next')) : false;
 
     if (!query) {
-      const prompt = 'Tell me what to play, for example `/play never gonna give you up`.';
+      const prompt = 'Tell me what to play — a song name, a link, or a Spotify track.';
       return isSlash ? interaction.reply(prompt) : message.reply(prompt);
     }
 
