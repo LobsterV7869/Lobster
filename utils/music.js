@@ -17,6 +17,8 @@ const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
 const IDLE_LEAVE_MS = 60000;
 const COOKIES_PATH = process.env.YTDLP_COOKIES || '';
 const PROBE_TIMEOUT_MS = Number(process.env.YTDLP_PROBE_TIMEOUT_MS) || 25000;
+const SEARCH_RESULTS = Number(process.env.YTDLP_SEARCH_RESULTS) || 5;
+const MAX_CANDIDATES = 3;
 
 let ffmpegPath = process.env.YTDLP_FFMPEG || '';
 if (!ffmpegPath) {
@@ -86,13 +88,13 @@ async function resolveTarget(input) {
     if (!response.ok) throw new Error('Could not read that Spotify track.');
     const { title } = await response.json();
     if (!title) throw new Error('Could not read that Spotify track.');
-    return { target: `ytsearch1:${title}`, source: 'spotify', query: title };
+    return { target: `ytsearch${SEARCH_RESULTS}:${title}`, source: 'spotify', query: title };
   }
   if (/^https?:\/\//i.test(input)) return { target: input, source: 'url', query: null };
-  return { target: `ytsearch1:${input}`, source: 'search', query: input };
+  return { target: `ytsearch${SEARCH_RESULTS}:${input}`, source: 'search', query: input };
 }
 
-async function loadMeta(target) {
+async function loadMetaList(target) {
   const output = await runYtdlp([
     '--dump-single-json', '--flat-playlist', '--no-warnings', '--no-playlist', target
   ]);
@@ -102,18 +104,18 @@ async function loadMeta(target) {
   } catch {
     throw new Error('Could not read the track details.');
   }
-  const entry = payload.entries ? payload.entries[0] : payload;
-  if (!entry) throw new Error('I could not find anything for that search.');
-  const id = entry.id || null;
-  const rawUrl = typeof entry.url === 'string' && !/api\.soundcloud\.com/i.test(entry.url) ? entry.url : null;
-  const url = entry.webpage_url || entry.original_url || rawUrl
-    || (id ? `https://www.youtube.com/watch?v=${id}` : null);
-  if (!url) throw new Error('I could not resolve a playable URL for that track.');
-  const duration = Number.isFinite(entry.duration) ? entry.duration : null;
-  let thumbnail = entry.thumbnail || entry.thumbnails?.[0]?.url || null;
-  const ytMatch = url.match(/[?&]v=([\w-]{6,})/);
-  if (!thumbnail && ytMatch) thumbnail = `https://i.ytimg.com/vi/${ytMatch[1]}/hqdefault.jpg`;
-  return { id, title: entry.title || 'Unknown title', url, duration, thumbnail };
+  const entries = payload.entries ? payload.entries : [payload];
+  return entries.filter(Boolean).map(entry => {
+    const id = entry.id || null;
+    const rawUrl = typeof entry.url === 'string' && !/api\.soundcloud\.com/i.test(entry.url) ? entry.url : null;
+    const url = entry.webpage_url || entry.original_url || rawUrl
+      || (id ? `https://www.youtube.com/watch?v=${id}` : null);
+    const duration = Number.isFinite(entry.duration) ? entry.duration : null;
+    let thumbnail = entry.thumbnail || entry.thumbnails?.[0]?.url || null;
+    const ytMatch = url && url.match(/[?&]v=([\w-]{6,})/);
+    if (!thumbnail && ytMatch) thumbnail = `https://i.ytimg.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+    return { id, title: entry.title || 'Unknown title', url, duration, thumbnail };
+  }).filter(meta => meta.url);
 }
 
 function probeStreamable(url) {
@@ -156,21 +158,25 @@ async function fetchTrack(input, requestedBy) {
   const primaryProvider = isSoundCloudTarget(primary.target) ? 'soundcloud' : 'youtube';
   const canSkipPrimary = youtubeUnavailable && primaryProvider === 'youtube' && primary.query;
 
-  let primaryMeta = null;
-  if (!canSkipPrimary) {
-    try { primaryMeta = await loadMeta(primary.target); } catch { primaryMeta = null; }
-  }
-
   const attempts = [];
-  if (primaryMeta && !(youtubeUnavailable && primaryProvider === 'youtube')) {
-    attempts.push({ meta: primaryMeta, provider: primaryProvider, source: primary.source });
+  let primaryTitle = null;
+  if (!canSkipPrimary) {
+    try {
+      const metas = await loadMetaList(primary.target);
+      primaryTitle = metas[0]?.title || null;
+      for (const meta of metas.slice(0, MAX_CANDIDATES)) {
+        attempts.push({ meta, provider: primaryProvider, source: primary.source });
+      }
+    } catch { /* the fallback below may still work */ }
   }
 
-  const fallbackQuery = primary.query || primaryMeta?.title || null;
+  const fallbackQuery = primary.query || primaryTitle || null;
   if (fallbackQuery && primaryProvider !== 'soundcloud') {
     try {
-      const meta = await loadMeta(`scsearch1:${fallbackQuery}`);
-      attempts.push({ meta, provider: 'soundcloud', source: 'soundcloud' });
+      const metas = await loadMetaList(`scsearch${SEARCH_RESULTS}:${fallbackQuery}`);
+      for (const meta of metas.slice(0, MAX_CANDIDATES)) {
+        attempts.push({ meta, provider: 'soundcloud', source: 'soundcloud' });
+      }
     } catch { /* no fallback available */ }
   }
 
@@ -178,18 +184,11 @@ async function fetchTrack(input, requestedBy) {
 
   let lastError = 'I could not find a playable stream for that track.';
   for (const attempt of attempts) {
+    if (attempt.provider === 'youtube' && youtubeUnavailable) continue;
     const probe = await probeStreamable(attempt.meta.url);
     if (probe.ok) {
       if (attempt.provider === 'youtube') youtubeUnavailable = false;
-      return {
-        id: attempt.meta.id,
-        title: attempt.meta.title,
-        url: attempt.meta.url,
-        duration: attempt.meta.duration,
-        thumbnail: attempt.meta.thumbnail,
-        source: attempt.source,
-        requestedBy
-      };
+      return { ...attempt.meta, source: attempt.source, requestedBy };
     }
     if (attempt.provider === 'youtube') youtubeUnavailable = true;
     lastError = friendlySourceError(probe.error);
