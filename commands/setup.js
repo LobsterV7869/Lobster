@@ -57,6 +57,36 @@ const LAYOUT = [
   }
 ];
 
+const BASIC_MEMBER_PERMS = [
+  PermissionFlagsBits.ViewChannel,
+  PermissionFlagsBits.SendMessages,
+  PermissionFlagsBits.ReadMessageHistory,
+  PermissionFlagsBits.AddReactions,
+  PermissionFlagsBits.Connect,
+  PermissionFlagsBits.Speak,
+  PermissionFlagsBits.UseVAD
+];
+
+const ROLES = [
+  { name: 'Owner', color: 0xE74C3C, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.Administrator] },
+  { name: 'Admin', color: 0x992D22, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.Administrator] },
+  { name: 'Bots', color: 0x5865F2, hoist: true, mentionable: false, permissions: BASIC_MEMBER_PERMS },
+  { name: 'Head Moderator', color: 0x111111, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.KickMembers, PermissionFlagsBits.BanMembers, PermissionFlagsBits.ModerateMembers, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.ManageNicknames, PermissionFlagsBits.ViewAuditLog, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.DeafenMembers, PermissionFlagsBits.MoveMembers, PermissionFlagsBits.ManageThreads] },
+  { name: 'Moderator', color: 0x1ABC9C, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.KickMembers, PermissionFlagsBits.ModerateMembers, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.ManageNicknames, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.MoveMembers] },
+  { name: 'Premium', color: 0xE67E22, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.UseExternalEmojis, PermissionFlagsBits.UseExternalStickers, PermissionFlagsBits.ChangeNickname, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.PrioritySpeaker] },
+  { name: 'Support', color: 0xF1C40F, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.ManageMessages, PermissionFlagsBits.ManageThreads, PermissionFlagsBits.ModerateMembers] },
+  { name: 'Sponsors', color: 0x2ECC71, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.UseExternalEmojis, PermissionFlagsBits.ChangeNickname] },
+  { name: 'Supporters', color: 0x9ACD32, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ChangeNickname] },
+  { name: 'Special Member', color: 0xFEE75C, hoist: true, mentionable: true, permissions: [PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.UseExternalEmojis, PermissionFlagsBits.UseExternalStickers, PermissionFlagsBits.ChangeNickname, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.PrioritySpeaker] },
+  { name: 'Testers', color: 0x95A5A6, hoist: false, mentionable: true, permissions: BASIC_MEMBER_PERMS },
+  { name: 'Developers', color: 0x27AE60, hoist: true, mentionable: false, permissions: [PermissionFlagsBits.ManageWebhooks, PermissionFlagsBits.ManageThreads, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.AttachFiles] },
+  { name: 'Member', color: 0xBDC3C7, hoist: false, mentionable: false, permissions: BASIC_MEMBER_PERMS },
+  { name: 'Users', color: 0x95A5A6, hoist: false, mentionable: false, permissions: BASIC_MEMBER_PERMS },
+  { name: 'Systems', color: 0x95A5A6, hoist: false, mentionable: false, permissions: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ManageWebhooks] }
+];
+
+const REMOVED_ROLES = ['Verified', 'Voters'];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setup')
@@ -76,10 +106,38 @@ module.exports = {
     else progressMessage = await message.reply('Setting up your starter layout…');
 
     const me = guild.members.me;
-    const getOrCreateRole = async (name, color) => {
+    const getOrCreateRole = async (spec) => {
+      if (!spec || typeof spec.name !== 'string') return null;
+      const name = spec.name;
+      const roleSpec = {
+        name,
+        color: spec.color,
+        hoist: !!spec.hoist,
+        mentionable: !!spec.mentionable,
+        permissions: spec.permissions || [],
+        reason: 'Lobster starter server setup'
+      };
       let role = guild.roles.cache.find(existing => existing.name === name);
       if (!role) {
-        role = await guild.roles.create({ name, color, reason: 'Lobster starter server setup' });
+        try {
+          role = await guild.roles.create(roleSpec);
+        } catch (error) {
+          console.error(`Could not create role ${name}:`, error);
+          return null;
+        }
+        return role;
+      }
+      if (role.editable) {
+        try {
+          await role.edit({
+            color: roleSpec.color,
+            hoist: roleSpec.hoist,
+            mentionable: roleSpec.mentionable,
+            permissions: roleSpec.permissions
+          });
+        } catch (error) {
+          console.error(`Could not update role ${name}:`, error);
+        }
       }
       return role;
     };
@@ -91,17 +149,41 @@ module.exports = {
         category = await guild.channels.create({
           name: spec.name,
           type: ChannelType.GuildCategory,
-          permissionOverwrites: spec.staffOnly ? [
-            { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-            {
-              id: staffRole.id,
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ReadMessageHistory
-              ]
-            },
-            {
+          permissionOverwrites: spec.staffOnly ? (() => {
+            const overwrites = [
+              { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+              {
+                id: staffRole.id,
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.ReadMessageHistory
+                ]
+              }
+            ];
+            const headMod = guild.roles.cache.find(r => r.name === 'Head Moderator');
+            const support = guild.roles.cache.find(r => r.name === 'Support');
+            if (headMod) {
+              overwrites.push({
+                id: headMod.id,
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.ReadMessageHistory
+                ]
+              });
+            }
+            if (support) {
+              overwrites.push({
+                id: support.id,
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.ReadMessageHistory
+                ]
+              });
+            }
+            overwrites.push({
               id: me.id,
               allow: [
                 PermissionFlagsBits.ViewChannel,
@@ -111,8 +193,9 @@ module.exports = {
                 PermissionFlagsBits.AttachFiles,
                 PermissionFlagsBits.ManageChannels
               ]
-            }
-          ] : undefined,
+            });
+            return overwrites;
+          })() : undefined,
           reason: 'Lobster starter server setup'
         });
       }
@@ -124,6 +207,8 @@ module.exports = {
         return [
           { id: everyone, deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
           { id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak] },
+          { id: (guild.roles.cache.find(r => r.name === 'Head Moderator')?.id || staffRole.id), allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak] },
+          { id: (guild.roles.cache.find(r => r.name === 'Support')?.id || staffRole.id), allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak] },
           { id: me.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak] }
         ];
       }
@@ -132,6 +217,24 @@ module.exports = {
           { id: everyone, deny: [PermissionFlagsBits.ViewChannel] },
           {
             id: staffRole.id,
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.EmbedLinks
+            ]
+          },
+          {
+            id: (guild.roles.cache.find(r => r.name === 'Head Moderator')?.id || staffRole.id),
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.EmbedLinks
+            ]
+          },
+          {
+            id: (guild.roles.cache.find(r => r.name === 'Support')?.id || staffRole.id),
             allow: [
               PermissionFlagsBits.ViewChannel,
               PermissionFlagsBits.SendMessages,
@@ -155,6 +258,8 @@ module.exports = {
         return [
           { id: everyone, deny: [PermissionFlagsBits.SendMessages] },
           { id: staffRole.id, allow: [PermissionFlagsBits.SendMessages] },
+          { id: (guild.roles.cache.find(r => r.name === 'Head Moderator')?.id || staffRole.id), allow: [PermissionFlagsBits.SendMessages] },
+          { id: (guild.roles.cache.find(r => r.name === 'Support')?.id || staffRole.id), allow: [PermissionFlagsBits.SendMessages] },
           {
             id: me.id,
             allow: [
@@ -170,8 +275,67 @@ module.exports = {
       return undefined;
     };
 
-    const staffRole = await getOrCreateRole('Moderator', 0xd64545);
-    const memberRole = await getOrCreateRole('Member', 0x5865f2);
+    const roleResults = {
+      created: [],
+      updated: [],
+      skipped: []
+    };
+
+    let staffRole;
+    let memberRole;
+    const createdRoles = [];
+
+    for (const roleSpec of ROLES) {
+      const existingBefore = guild.roles.cache.find(r => r.name === roleSpec.name);
+      const role = await getOrCreateRole(roleSpec);
+      if (!role) {
+        roleResults.skipped.push(roleSpec.name);
+        continue;
+      }
+      createdRoles.push(role);
+      if (roleSpec.name === 'Moderator') staffRole = role;
+      if (roleSpec.name === 'Member') memberRole = role;
+      if (existingBefore) {
+        roleResults.updated.push(role.name);
+      } else {
+        roleResults.created.push(role.name);
+      }
+    }
+
+    if (!memberRole) memberRole = guild.roles.cache.find(r => r.name === 'Users');
+
+    const removedRoles = [];
+    for (const name of REMOVED_ROLES) {
+      const role = guild.roles.cache.find(r => r.name === name);
+      if (!role || !role.editable) continue;
+      try {
+        await role.delete('Lobster setup: role removed from starter layout');
+        removedRoles.push(name);
+      } catch (error) {
+        console.error(`Could not delete role ${name}:`, error);
+      }
+    }
+
+    try {
+      if (createdRoles.length > 0 && me && me.roles && me.roles.highest) {
+        const rolesToReorder = [...createdRoles];
+        const order = ROLES.map(r => r.name);
+        rolesToReorder.sort((a, b) => {
+          const ia = order.indexOf(a.name);
+          const ib = order.indexOf(b.name);
+          if (ia === -1) return 1;
+          if (ib === -1) return -1;
+          return ia - ib;
+        });
+        const positions = rolesToReorder.map((r, i) => ({
+          role: r.id,
+          position: me.roles.highest.position - (rolesToReorder.length - i)
+        }));
+        await guild.roles.setPositions(positions);
+      }
+    } catch (error) {
+      console.error('Could not reorder roles:', error);
+    }
 
     const created = {};
     for (const spec of LAYOUT) {
@@ -236,7 +400,7 @@ module.exports = {
     db.updateSetting(guild.id, 'lastCount', 0);
     db.updateSetting(guild.id, 'lastCounter', null);
     db.updateSetting(guild.id, 'levelUpChannel', created.general.id);
-    if (memberRole.editable) db.updateSetting(guild.id, 'autorole', memberRole.id);
+    if (memberRole && memberRole.editable) db.updateSetting(guild.id, 'autorole', memberRole.id);
     db.updateSetting(guild.id, 'ticketChannel', created.support.id);
     db.updateSetting(guild.id, 'ticketCategory', ticketCategory.id);
     db.updateSetting(guild.id, 'ticketAdminRole', staffRole.id);
@@ -325,12 +489,16 @@ module.exports = {
             `📋 Logs in ${created['audit-logs']} · moderation in ${created['mod-logs']}`,
             `🎫 Ticket panel in ${created.support} · transcripts in ${created['ticket-logs']}`,
             `🔢 Counting started in ${created.counting}`,
-            memberRole.editable ? `🎭 New members get ${memberRole}` : '🎭 Autorole skipped (role not editable)'
+            (memberRole && memberRole.editable) ? `🎭 New members get ${memberRole}` : '🎭 Autorole skipped (role not editable)'
           ].join('\n')
         },
         {
           name: '🚀 Next steps',
           value: '`/welcomer` · design the welcome card\n`/ticket-panel` · customise support\n`/log` · adjust what gets logged\n`/help` · browse every command'
+        },
+        {
+          name: '🎭 Roles',
+          value: `Created: ${roleResults.created.length ? roleResults.created.join(', ') : 'none'}\nUpdated: ${roleResults.updated.length ? roleResults.updated.join(', ') : 'none'}\nSkipped: ${roleResults.skipped.length ? roleResults.skipped.join(', ') : 'none'}\nRemoved: ${removedRoles.length ? removedRoles.join(', ') : 'none'}`
         }
       )
       .setFooter({ text: '🦞 Lobster · Starter layout' })

@@ -2,16 +2,20 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = 
 const db = require('../utils/database');
 
 const LOG_TYPES = {
-  general: { label: 'General', includes: 'Server events and setup activity' },
-  moderation: { label: 'Moderation', includes: 'Bans, kicks, timeouts, and AutoMod actions' },
-  members: { label: 'Members', includes: 'Member joins, leaves, and profile changes' },
-  messages: { label: 'Messages', includes: 'Message edits and deletions; content is never copied' },
-  channels: { label: 'Channels', includes: 'Channel creation, changes, and deletion' },
-  roles: { label: 'Roles', includes: 'Role creation, changes, and deletion' },
-  voice: { label: 'Voice', includes: 'Voice joins, leaves, and channel moves' },
-  emojis: { label: 'Emojis', includes: 'Server emoji changes' },
-  levels: { label: 'Levels', includes: 'Member level-ups' },
-  security: { label: 'Security', includes: 'Anti-nuke alerts and join protection' }
+  "giriş-çıkış-log": { label: '🔮・giriş-çıkış-log', includes: 'Üye giriş ve çıkışları' },
+  "mesaj-log": { label: '💬・mesaj-log', includes: 'Mesaj düzenleme ve silme işlemleri' },
+  "isim-log": { label: '✨・isim-log', includes: 'Üye isim değişiklikleri' },
+  "seviye-log": { label: '💠・seviye-log', includes: 'Seviye atlamaları' },
+  "ban-log": { label: '⛔・ban-log', includes: 'Ban işlemleri' },
+  "kick-log": { label: '👢・kick-log', includes: 'Kick işlemleri' },
+  "jail-log": { label: '🚷・jail-log', includes: 'Jail işlemleri' },
+  "talep-log": { label: '📞・talep-log', includes: 'Talep işlemleri' },
+  "ceza-log": { label: '🚫・ceza-log', includes: 'Ceza işlemleri' },
+  "mod-log": { label: '🔏・mod-log', includes: 'Moderasyon işlemleri' },
+  "koruma-log": { label: '🛡️・koruma-log', includes: 'Koruma sistem uyarıları' },
+  "davet-log": { label: '🔗・davet-log', includes: 'Davet logları' },
+  "ses-log": { label: '🔉・ses-log', includes: 'Ses kanal hareketleri' },
+  "emoji-log": { label: '🙂・emoji-log', includes: 'Emoji değişiklikleri' }
 };
 
 function parseState(value) {
@@ -149,12 +153,22 @@ module.exports = {
     const hasActiveChannel = Object.keys(LOG_TYPES).some(key =>
       updated.eventLogsEnabled && updated.eventLogTypes[key] && (updated.eventLogChannels[key] || mainChannel)
     );
+    const now = new Date();
+    const pad = (n) => n.toString().padStart(2, '0');
+    const footerText = `Sorgulayan: Lobster | Son güncellenme: ${pad(now.getDate())}.${pad(now.getMonth()+1)}.${now.getFullYear()} - ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const getStatus = (key) => {
+      const enabled = updated.eventLogsEnabled && updated.eventLogTypes[key];
+      const hasChan = updated.eventLogChannels[key] || mainChannel;
+      return enabled && hasChan ? '🟢' : '⚪';
+    };
+    const chan = (key) => updated.eventLogChannels[key] ? `<#${updated.eventLogChannels[key]}>` : 'Deaktif';
+
     const embed = new EmbedBuilder()
       .setColor(hasActiveChannel ? 0x5865f2 : 0x747f8d)
-      .setAuthor({ name: 'Lobster · Server logs' })
-      .setTitle('📋 Log settings')
-      .setDescription(`${hasActiveChannel ? `**Main log channel:** ${mainChannel || 'Not set'} · Dedicated channels override this per category.` : '**Logging is disabled.** Set a main channel with \`/log channel:#logs\` or assign channels by category.'}\n\n${lines.join('\n')}`)
-      .setFooter({ text: 'Use “default” to clear a category channel. Event logs do not copy message contents.' });
+      .setTitle('📜・loglar')
+      .setDescription(`📜・loglar\n\n🔮・giriş-çıkış-log ${getStatus('giriş-çıkış-log')} · Üye giriş ve çıkışları · ${chan('giriş-çıkış-log')}\n💬・mesaj-log ${getStatus('mesaj-log')} · Mesaj düzenleme ve silme işlemleri · ${chan('mesaj-log')}\n✨・isim-log ${getStatus('isim-log')} · Üye isim değişiklikleri · ${chan('isim-log')}\n💠・seviye-log ${getStatus('seviye-log')} · Seviye atlamaları · ${chan('seviye-log')}\n⛔・ban-log ${getStatus('ban-log')} · Ban işlemleri · ${chan('ban-log')}\n👢・kick-log ${getStatus('kick-log')} · Kick işlemleri · ${chan('kick-log')}\n🚷・jail-log ${getStatus('jail-log')} · Jail işlemleri · ${chan('jail-log')}\n📞・talep-log ${getStatus('talep-log')} · Talep işlemleri · ${chan('talep-log')}\n🚫・ceza-log ${getStatus('ceza-log')} · Ceza işlemleri · ${chan('ceza-log')}\n🔏・mod-log ${getStatus('mod-log')} · Moderasyon işlemleri · ${chan('mod-log')}\n🛡️・koruma-log ${getStatus('koruma-log')} · Koruma sistem uyarıları · ${chan('koruma-log')}\n🔗・davet-log ${getStatus('davet-log')} · Davet logları · ${chan('davet-log')}\n🔉・ses-log ${getStatus('ses-log')} · Ses kanal hareketleri · ${chan('ses-log')}\n🙂・emoji-log ${getStatus('emoji-log')} · Emoji değişiklikleri · ${chan('emoji-log')}\n\nLobster Logları\n\nModerasyon Logları:\n- ban-log: ${chan('ban-log')}\n- kick-log: ${chan('kick-log')}\n- mute-log: Deaktif\n- jail-log: ${chan('jail-log')}\n- mod-log: ${chan('mod-log')}\n- koruma-log: ${chan('koruma-log')}\n\nGenel Loglar:\n@ • rol-log: Deaktif\n- tepki-log: Deaktif\n- emoji-log: ${chan('emoji-log')}\n- talep-log: ${chan('talep-log')}\n- mesaj-log: ${chan('mesaj-log')}\n- seviye-log: ${chan('seviye-log')}\n- isim-log: ${chan('isim-log')}\n- ses-log: ${chan('ses-log')}\n- kanal-log: Deaktif\n- davet-log: ${chan('davet-log')}\n- giriş-çıkış-log: ${chan('giriş-çıkış-log')}\n- tag-log: Deaktif\n\n${footerText}`)
+      .setFooter({ text: 'Lobster Logları' });
     return isSlash
       ? interaction.reply({ embeds: [embed], ephemeral: true })
       : message.reply({ embeds: [embed] });

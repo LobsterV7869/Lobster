@@ -48,37 +48,27 @@ function welcomeEmbed(member, settings) {
   const embed = new EmbedBuilder()
     .setColor(hexToInt(settings.welcomeColor, 0xff6b35))
     .setAuthor({
-      name: `👋 Welcome to ${member.guild.name}`,
+      name: `🎉 Welcome To Server`,
       iconURL: member.guild.iconURL() || undefined
     })
-    .setTitle(format(settings.welcomeTitle) || `👋 Welcome, ${member.user.username}!`)
-    .setDescription(format(settings.welcomeMessage)
-      || `Hey ${member}, welcome to **${member.guild.name}**! You are our **${ordinal(memberCount)}** member.`)
+    .setDescription(format(settings.welcomeMessage) || `${member} welcome to our server! Feel free to chat and join in.`)
     .setThumbnail(validUrl(settings.welcomeThumbnail)
       ? settings.welcomeThumbnail
       : member.user.displayAvatarURL({ size: 256 }))
     .addFields(
-      { name: '👤 Member', value: `${member}`, inline: true },
-      { name: '🔢 Join position', value: `#${memberCount.toLocaleString()} (${ordinal(memberCount)})`, inline: true },
-      { name: '🕒 Account age', value: `<t:${createdAt}:R>`, inline: true },
-      { name: '📅 Account created', value: `<t:${createdAt}:D>`, inline: true },
-      { name: '📥 Joined server', value: `<t:${joinedAt}:D>`, inline: true }
+      { name: '👤 User', value: `${member}`, inline: true },
+      { name: '📅 Account Created', value: `<t:${createdAt}:R>`, inline: true },
+      { name: '🔢 Server Member Count', value: `${memberCount}`, inline: true },
+      { name: '💌 Invited By', value: 'Unknown', inline: true }
     )
     .setFooter({ text: format(settings.welcomeFooter) || '🦞 Lobster' })
     .setTimestamp();
 
   if (validUrl(settings.welcomeImage)) embed.setImage(settings.welcomeImage);
+  else embed.setImage('https://cdn.discordapp.com/attachments/1554182268644499456/1560382967396696194/welcome.jpg');
 
-  if (Date.now() - member.user.createdTimestamp < 7 * 86400000) {
-    embed.addFields({ name: '⚠️ New account', value: 'This account is less than 7 days old.', inline: false });
-  }
-  if (settings.welcomeServerAddress) {
-    embed.addFields({
-      name: '🎮 Server address',
-      value: settings.welcomeServerAddress.slice(0, 1024),
-      inline: false
-    });
-  }
+
+
   return embed;
 }
 

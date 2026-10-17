@@ -2,21 +2,23 @@
 
 const { EmbedBuilder } = require('discord.js');
 
-const LOBSTER_ORANGE = 0xff6b35;
-const LOBSTER_FOOTER = '🦞 Lobster';
+const LOBSTER_ORANGE = 0xFF6B2C;
+const LOBSTER_FOOTER = '🦞 Lobster Help System';
 const MAX_DESCRIPTION = 4000;
 const MAX_EMBEDS = 10;
 const MAX_FOOTER = 2000;
 
+// One strong accent (orange) across every command, so the bot feels consistent.
+// Emojis stay per-category for the heading; the embed bar is always orange.
 const CATEGORY_STYLE = {
-  General: { emoji: '🛠️', color: 0xff6b35 },
-  Moderation: { emoji: '🛡️', color: 0xed4245 },
-  Security: { emoji: '🔒', color: 0x992d22 },
-  Utility: { emoji: '🔎', color: 0x5865f2 },
-  Configuration: { emoji: '⚙️', color: 0x1abc9c },
-  Community: { emoji: '👥', color: 0x9b59b6 },
-  Music: { emoji: '🎵', color: 0x1db954 },
-  Fun: { emoji: '🎮', color: 0xeb459e }
+  General: { emoji: '🛠️', color: 0xFF6B2C },
+  Moderation: { emoji: '🛡️', color: 0xFF6B2C },
+  Security: { emoji: '🔒', color: 0xFF6B2C },
+  Utility: { emoji: '🔎', color: 0xFF6B2C },
+  Configuration: { emoji: '⚙️', color: 0xFF6B2C },
+  Community: { emoji: '👥', color: 0xFF6B2C },
+  Music: { emoji: '🎵', color: 0xFF6B2C },
+  Fun: { emoji: '🎮', color: 0xFF6B2C }
 };
 
 const COMMAND_TITLES = {

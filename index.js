@@ -6,7 +6,6 @@ const { createHash } = require('node:crypto');
 const {
   ActivityType,
   ActionRowBuilder,
-  AttachmentBuilder,
   AuditLogEvent,
   ButtonBuilder,
   ButtonStyle,
@@ -15,11 +14,13 @@ const {
   Collection,
   EmbedBuilder,
   GatewayIntentBits,
+  GuildMember,
   PermissionFlagsBits,
   Partials,
   UserSelectMenuBuilder
 } = require('discord.js');
 const db = require('./utils/database');
+const DiscordTranscripts = require('discord-html-transcripts');
 const { createDashboardServer } = require('./dashboard/server');
 const voiceManager = require('./dashboard/voice-manager');
 const { executeCommand } = require('./utils/handler');
@@ -27,7 +28,7 @@ const { stylePayload, styledContext } = require('./utils/command-style');
 const backups = require('./utils/backups');
 const { welcomeEmbed } = require('./utils/welcome');
 const { farewellEmbed } = require('./utils/farewell');
-const { CATEGORIES, commandCategory, overviewEmbed, categoryEmbed, categoryMenu } = require('./commands/help');
+const { CATEGORIES, commandCategory, overviewEmbed, categoryEmbed, categoryMenu, helpButtons } = require('./commands/help');
 
 if (!process.env.TOKEN) {
   console.error('Set TOKEN in .env before starting Lobster.');
@@ -95,45 +96,26 @@ function temporaryReply(promise, milliseconds = 5000) {
     .catch(error => console.error('Could not send temporary reply:', error));
 }
 
-async function createTicketTranscript(channel, ticketOwnerId, closedById) {
-  const messages = [];
-  let before;
-  while (messages.length < 1000) {
-    const page = await channel.messages.fetch({
-      limit: Math.min(100, 1000 - messages.length),
-      ...(before ? { before } : {})
-    });
-    if (page.size === 0) break;
-    messages.push(...page.values());
-    before = page.last().id;
-    if (page.size < 100) break;
-  }
+function ticketOwnerIdFromTopic(topic) {
+  if (!topic) return null;
+  return topic.match(/^(?:lobster-ticket|ticket-owner):(\d+)$/)?.[1]
+    || topic.match(/Ticket sahibi:\s*(\d{17,20})/)?.[1]
+    || null;
+}
 
-  messages.sort((first, second) => first.createdTimestamp - second.createdTimestamp);
-  const lines = [
-    `Ticket transcript: #${channel.name}`,
-    `Server: ${channel.guild.name}`,
-    `Opened by: ${ticketOwnerId}`,
-    `Closed by: ${closedById}`,
-    `Generated: ${new Date().toISOString()}`,
-    ''
-  ];
-  for (const message of messages) {
-    const timestamp = new Date(message.createdTimestamp).toISOString();
-    const body = [message.content, ...message.attachments.map(attachment => attachment.url)]
-      .filter(Boolean)
-      .join('\n');
-    const embedText = message.embeds
-      .map(embed => [embed.title, embed.description].filter(Boolean).join('\n'))
-      .filter(Boolean)
-      .join('\n');
-    lines.push(`[${timestamp}] ${message.author.tag}: ${body || embedText || '[No text content]'}`);
-  }
-  const transcript = lines.join('\n');
-  const safeTranscript = transcript.length > 500_000
-    ? `${transcript.slice(0, 499_900)}\n\n[Transcript truncated at 500,000 characters.]`
-    : transcript;
-  return Buffer.from(safeTranscript, 'utf8');
+function ticketTopic(ownerId, type = 'Support', priority = 'Normal') {
+  return `Ticket sahibi: ${ownerId} | Növ: ${type} | Prioritet: ${priority} | Claim: none`;
+}
+
+async function createTicketTranscript(channel) {
+  return DiscordTranscripts.createTranscript(channel, {
+    limit: -1,
+    returnType: 'attachment',
+    filename: `${channel.name}-transcript.html`.replace(/[^a-z0-9_.-]/gi, '-'),
+    saveImages: false,
+    poweredBy: false,
+    footerText: 'Exported {number} message{s}.'
+  });
 }
 
 async function finishGiveaway(giveaway) {
@@ -642,19 +624,30 @@ client.on('messageCreate', async message => {
     if (await checkAutomod(message, settings)) return;
 
     if (settings.counting && message.channel.id === settings.countingChannel) {
-      if (!/^\d+$/.test(message.content.trim())) return;
-      const number = Number(message.content.trim());
+      const trimmed = message.content.trim();
+      if (!/^\d+$/.test(trimmed)) {
+        try {
+          await message.delete();
+        } catch (error) {
+          console.error('Could not delete invalid counting message:', error);
+        }
+        return;
+      }
+      const number = Number(trimmed);
       if (Number.isSafeInteger(number) && number === settings.lastCount + 1 && message.author.id !== settings.lastCounter) {
         db.updateSetting(message.guild.id, 'lastCount', number);
         db.updateSetting(message.guild.id, 'lastCounter', message.author.id);
-        await message.react('✅');
+        try {
+          await message.react('✅');
+        } catch (error) {
+          console.error('Could not react to counting message:', error);
+        }
       } else {
-        await message.react('❌');
-        await message.reply(styleCommandPayload('counting', message.guild, {
-          content: `Wrong number. The next number was **${settings.lastCount + 1}**; counting resets to 0.`
-        }));
-        db.updateSetting(message.guild.id, 'lastCount', 0);
-        db.updateSetting(message.guild.id, 'lastCounter', null);
+        try {
+          await message.delete();
+        } catch (error) {
+          console.error('Could not delete wrong counting message:', error);
+        }
       }
       return;
     }
@@ -745,10 +738,12 @@ client.on('interactionCreate', async interaction => {
     }
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-    const member = await interaction.guild.members.fetch(interaction.user.id).catch(error => {
-      console.error(`Could not load member ${interaction.user.id} in ${interaction.guildId}:`, error);
-      return null;
-    });
+    const member = interaction.member instanceof GuildMember
+      ? interaction.member
+      : await interaction.guild.members.fetch(interaction.user.id).catch(error => {
+        console.error(`Could not load member ${interaction.user.id} in ${interaction.guildId}:`, error);
+        return null;
+      });
     if (!member) {
       await interaction.reply({ content: 'I could not load your server member details. Please try again.', ephemeral: true });
       return;
@@ -777,11 +772,11 @@ client.on('interactionCreate', async interaction => {
       }
       const prefix = db.getSettings(interaction.guildId).prefix || 'p';
       const embed = category === 'Home'
-        ? overviewEmbed(client, prefix)
-        : categoryEmbed(category, client.commands.filter(command => commandCategory(command) === category), prefix);
+        ? overviewEmbed(client, prefix, interaction.guild)
+        : categoryEmbed(category, client.commands.filter(command => commandCategory(command) === category), prefix, interaction.guild, client);
       await interaction.editReply(stylePayload(client.commands.get('help'), {
         embeds: [embed],
-        components: [categoryMenu()]
+        components: [categoryMenu(), helpButtons()]
       }, { client, guild: interaction.guild, isSlash: true }));
     } catch (error) {
       if (error.code === 10062 || error.code === 40060) {
@@ -806,7 +801,7 @@ client.on('interactionCreate', async interaction => {
     try {
       const settings = db.getSettings(interaction.guildId);
       const ticketMember = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-      const ticketOwnerId = interaction.channel.topic?.match(/^(?:lobster-ticket|ticket-owner):(\d+)$/)?.[1];
+      const ticketOwnerId = ticketOwnerIdFromTopic(interaction.channel.topic);
       if (!ticketOwnerId) {
         await interaction.reply({ content: 'This is not an active ticket channel.', ephemeral: true });
         return;
@@ -996,7 +991,7 @@ client.on('interactionCreate', async interaction => {
     }
     const settings = db.getSettings(interaction.guildId);
     const ticketMember = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-    const ticketOwnerId = interaction.channel.topic?.match(/^(?:lobster-ticket|ticket-owner):(\d+)$/)?.[1];
+    const ticketOwnerId = ticketOwnerIdFromTopic(interaction.channel.topic);
     if (!ticketOwnerId) {
       await interaction.reply({ content: 'This is not an active ticket channel.', ephemeral: true });
       return;
@@ -1080,7 +1075,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         const existingTicket = interaction.guild.channels.cache.find(channel =>
-          channel.topic === `lobster-ticket:${interaction.user.id}`
+          ticketOwnerIdFromTopic(channel.topic) === interaction.user.id
         );
         if (existingTicket) {
           await interaction.editReply(`You already have an open ticket: ${existingTicket}`);
@@ -1091,7 +1086,7 @@ client.on('interactionCreate', async interaction => {
           name: `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 85)}`,
           type: ChannelType.GuildText,
           parent: category.id,
-          topic: `lobster-ticket:${interaction.user.id}`,
+          topic: ticketTopic(interaction.user.id),
           permissionOverwrites: [
             { id: interaction.guildId, deny: [PermissionFlagsBits.ViewChannel] },
             {
@@ -1165,7 +1160,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId === 'ticket_close') {
       const settings = db.getSettings(interaction.guildId);
       const ticketMember = await interaction.guild.members.fetch(interaction.user.id);
-      const ticketOwnerId = interaction.channel.topic?.match(/^(?:lobster-ticket|ticket-owner):(\d+)$/)?.[1];
+      const ticketOwnerId = ticketOwnerIdFromTopic(interaction.channel.topic);
       if (!ticketOwnerId) {
         await interaction.reply({ content: 'This is not an active ticket channel.', ephemeral: true });
         return;
@@ -1191,14 +1186,13 @@ client.on('interactionCreate', async interaction => {
       }
       await interaction.deferReply({ ephemeral: true });
       if (transcriptChannel) {
-        const transcript = await createTicketTranscript(interaction.channel, ticketOwnerId, interaction.user.id);
-        const fileName = `${interaction.channel.name}-transcript.txt`.replace(/[^a-z0-9_.-]/gi, '-');
+        const transcript = await createTicketTranscript(interaction.channel);
         await transcriptChannel.send(styleCommandPayload('ticket-panel', interaction.guild, {
           embeds: [new EmbedBuilder()
             .setColor(0xff6b35)
             .setTitle('Ticket transcript')
             .setDescription(`Transcript for **#${interaction.channel.name}**\nOpened by <@${ticketOwnerId}> · Closed by <@${interaction.user.id}>.`)],
-          files: [new AttachmentBuilder(transcript, { name: fileName })],
+          files: [transcript],
           allowedMentions: { parse: [] }
         }));
       }

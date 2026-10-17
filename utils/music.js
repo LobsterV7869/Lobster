@@ -200,10 +200,14 @@ async function fetchTrack(input, requestedBy) {
 }
 
 function destroyStream(queue) {
-  if (!queue?.stream) return;
-  try { queue.stream.kill('SIGKILL'); } catch { /* already gone */ }
-  try { queue.stream.stdout?.destroy(); } catch { /* already gone */ }
+  if (!queue) return;
+  try { queue.stream?.kill('SIGKILL'); } catch { /* already gone */ }
+  try { queue.stream?.stdout?.destroy(); } catch { /* already gone */ }
+  try { queue.encoder?.kill('SIGKILL'); } catch { /* already gone */ }
+  try { queue.encoder?.stdin?.destroy(); } catch { /* already gone */ }
+  try { queue.encoder?.stdout?.destroy(); } catch { /* already gone */ }
   queue.stream = null;
+  queue.encoder = null;
 }
 
 function destroyConnection(connection) {
