@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, version: discordVersion } = require('discord.js');
-const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -19,7 +19,7 @@ module.exports = {
     const members = client.guilds.cache.reduce((total, guild) => total + guild.memberCount, 0);
 
     const embed = new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
+      .setColor(LOBSTER_BLUE)
       .setAuthor({ name: 'Lobster · Bot information', iconURL: client.user.displayAvatarURL() })
       .setTitle(`🦞 ${client.user.username}`)
       .setDescription('A public Discord bot for server setup, moderation, support, and community tools.')

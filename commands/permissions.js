@@ -24,7 +24,7 @@ module.exports = {
       .setAuthor({ name: 'Lobster · Permissions' })
       .setTitle(`🔎 ${user.username}'s permissions`)
       .setDescription(perms)
-      .setColor(0x5865f2);
+      .setColor(0x5BA6FB);
     
     if (isSlash) await interaction.reply({ embeds: [embed] });
     else await message.reply({ embeds: [embed] });

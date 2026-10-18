@@ -108,7 +108,7 @@ module.exports = {
       `${key.match(/^\d+$/) ? `<:role:${key}>` : key} → <@&${mapping.roleId}>`
     ).join('\n');
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(0x5BA6FB)
       .setTitle('Reaction roles')
       .setDescription(description || 'No reaction roles are configured on this message.');
     return isSlash

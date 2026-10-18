@@ -58,7 +58,7 @@ module.exports = {
 
     const entries = Object.entries(replies);
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(0x5BA6FB)
       .setTitle('Automatic replies')
       .setDescription(entries.length
         ? entries.slice(0, 20).map(([trigger, response]) =>

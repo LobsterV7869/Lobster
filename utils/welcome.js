@@ -46,7 +46,7 @@ function welcomeEmbed(member, settings) {
   };
 
   const embed = new EmbedBuilder()
-    .setColor(hexToInt(settings.welcomeColor, 0xff6b35))
+    .setColor(hexToInt(settings.welcomeColor, 0x5BA6FB))
     .setAuthor({
       name: `🎉 Welcome To Server`,
       iconURL: member.guild.iconURL() || undefined

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,7 +9,7 @@ module.exports = {
   async run({ client, interaction, message, isSlash }) {
     const startedAt = Date.now();
     const embed = new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
+      .setColor(LOBSTER_BLUE)
       .setAuthor({
         name: 'Lobster · Ping check',
         iconURL: client.user.displayAvatarURL()

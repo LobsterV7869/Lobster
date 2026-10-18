@@ -7,7 +7,7 @@ const {
   ButtonStyle
 } = require('discord.js');
 const db = require('../utils/database');
-const { LOBSTER_ORANGE } = require('../utils/command-style');
+const { LOBSTER_BLUE } = require('../utils/command-style');
 
 const SUPPORT_URL = 'https://discord.gg/lobster';
 const INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=1557475110741344308&scope=bot%20applications.commands&permissions=0';
@@ -77,7 +77,7 @@ function overviewEmbed(client, prefix, guild) {
   });
 
   return new EmbedBuilder()
-    .setColor(LOBSTER_ORANGE)
+    .setColor(LOBSTER_BLUE)
     .setAuthor({ name: 'Lobster · Help System', iconURL: avatar })
     .setTitle(`${list} Help Menu`)
     .setDescription([
@@ -97,7 +97,7 @@ function categoryEmbed(category, commands, prefix, guild, client) {
   const count = toArray(commands).length;
 
   const embed = new EmbedBuilder()
-    .setColor(LOBSTER_ORANGE)
+    .setColor(LOBSTER_BLUE)
     .setTitle(`${list} ${category} Commands`)
     .setDescription([
       `**${count} command${count === 1 ? '' : 's'}** · use them as \`/command\` or \`${prefix} command\``,

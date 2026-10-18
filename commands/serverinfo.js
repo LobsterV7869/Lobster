@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ChannelType } = require('discord.js');
-const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 const VERIFICATION_LEVELS = {
   0: 'None',
@@ -64,7 +64,7 @@ module.exports = {
     const animatedEmojis = guild.emojis.cache.filter(emoji => emoji.animated).size;
 
     const embed = new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
+      .setColor(LOBSTER_BLUE)
       .setAuthor({
         name: 'Lobster · Server profile',
         ...(icon ? { iconURL: icon } : {})

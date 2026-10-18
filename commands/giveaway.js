@@ -68,7 +68,7 @@ module.exports = {
 
     const endTime = Date.now() + (duration * 60 * 1000);
     const embed = new EmbedBuilder()
-      .setColor(0xff6b35)
+      .setColor(0x5BA6FB)
       .setAuthor({ name: 'Lobster · Community giveaway' })
       .setTitle('🎉 Giveaway')
       .setDescription(`Prize: **${prize}**\nWinners: **${winners}**\nEnds: <t:${Math.floor(endTime / 1000)}:R>\nHosted by: ${user}`)

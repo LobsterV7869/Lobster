@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 const IMPORTANT_PERMISSIONS = [
   'Administrator',
@@ -38,7 +38,7 @@ module.exports = {
       .map(name => name.replace(/([a-z])([A-Z])/g, '$1 $2'));
     const colorHex = `#${role.color.toString(16).padStart(6, '0').toUpperCase()}`;
     const embed = new EmbedBuilder()
-      .setColor(role.color || LOBSTER_ORANGE)
+      .setColor(role.color || LOBSTER_BLUE)
       .setAuthor({ name: 'Lobster · Role profile' })
       .setTitle(`🎖️ ${role.name}`)
       .setDescription([

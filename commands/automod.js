@@ -182,7 +182,7 @@ module.exports = {
       `${current.automodRules.blockedWords.length ? '✅' : '▫️'} Blocked words (${current.automodRules.blockedWords.length})`
     );
     const embed = new EmbedBuilder()
-      .setColor(current.automod ? 0x5865f2 : 0x747f8d)
+      .setColor(current.automod ? 0x5BA6FB : 0x747f8d)
       .setAuthor({ name: 'Lobster · AutoMod action' })
       .setTitle('🤖 AutoMod')
       .setDescription(

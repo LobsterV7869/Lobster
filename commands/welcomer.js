@@ -43,7 +43,7 @@ module.exports = {
     .addStringOption(option => option.setName('message').setDescription('Welcome text; supports {user}, {server}, {membercount}, {created}, {joined}').setMaxLength(4000))
     .addStringOption(option => option.setName('image').setDescription('Large banner image URL').setMaxLength(500))
     .addStringOption(option => option.setName('thumbnail').setDescription('Small thumbnail image URL').setMaxLength(500))
-    .addStringOption(option => option.setName('color').setDescription('Hex color, e.g. #FF6B35').setMaxLength(7))
+    .addStringOption(option => option.setName('color').setDescription('Hex color, e.g. #5BA6FB').setMaxLength(7))
     .addStringOption(option => option.setName('footer').setDescription('Footer; supports {membercount}').setMaxLength(2048))
     .addStringOption(option => option.setName('address').setDescription('Optional game/server address').setMaxLength(100))
     .addStringOption(option => option.setName('farewell_message').setDescription('Departure text; supports {user}, {server}, {membercount}').setMaxLength(4000))
@@ -146,7 +146,7 @@ module.exports = {
         welcomeMessage: 'Welcome {user} to **{server}**! We are glad you are here.',
         welcomeImage: null,
         welcomeThumbnail: null,
-        welcomeColor: '#FF6B35',
+        welcomeColor: '#5BA6FB',
         welcomeFooter: 'Member #{membercount}',
         welcomeServerAddress: null
       })) {
@@ -224,7 +224,7 @@ module.exports = {
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (key === 'welcomeColor' && !/^#[\da-f]{6}$/i.test(value)) {
-        const response = 'Color must be a six-digit hex value such as `#FF6B35`.';
+        const response = 'Color must be a six-digit hex value such as `#5BA6FB`.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
     }

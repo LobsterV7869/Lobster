@@ -61,7 +61,7 @@ module.exports = {
       ? `External Apps usage was ${disabling ? 'disabled' : 'restored'} where possible. Failed in: ${failures.join(', ')}.`
       : `External Apps usage has been **${disabling ? 'disabled' : 'restored'}** in all channels.`;
     const embed = new EmbedBuilder()
-      .setColor(failures.length ? 0xd64545 : 0x5865f2)
+      .setColor(failures.length ? 0xd64545 : 0x5BA6FB)
       .setDescription(description);
     return isSlash ? interaction.reply({ embeds: [embed], ephemeral: failures.length > 0 }) : message.reply({ embeds: [embed] });
   }

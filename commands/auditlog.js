@@ -56,7 +56,7 @@ module.exports = {
     const dedicatedChannels = Object.values(current.eventLogChannels || {}).filter(Boolean).length;
     const active = current.eventLogsEnabled && (channel || dedicatedChannels > 0);
     const embed = new EmbedBuilder()
-      .setColor(active ? 0x5865f2 : 0x747f8d)
+      .setColor(active ? 0x5BA6FB : 0x747f8d)
       .setTitle('Server event logs')
       .setDescription(active
         ? channel

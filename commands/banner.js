@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,7 +20,7 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
+      .setColor(LOBSTER_BLUE)
       .setAuthor({ name: 'Lobster · Banner', iconURL: user.displayAvatarURL() })
       .setTitle(`🎏 ${user.username}`)
       .setImage(fullUser.bannerURL({ dynamic: true, size: 512 }))

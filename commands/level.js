@@ -20,7 +20,7 @@ module.exports = {
     const progressFilled = Math.floor((stats.progress / stats.needed) * 12);
     const progressBar = `${'▰'.repeat(progressFilled)}${'▱'.repeat(12 - progressFilled)}`;
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(0x5BA6FB)
       .setAuthor({ name: `${target.username}’s level`, iconURL: target.displayAvatarURL() })
       .setThumbnail(target.displayAvatarURL({ size: 256 }))
       .addFields(

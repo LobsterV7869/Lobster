@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 function percent(part, total) {
   if (!total) return '0%';
@@ -33,7 +33,7 @@ module.exports = {
     const bots = await countBots(guild);
     const humans = Math.max(0, total - bots);
     const embed = new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
+      .setColor(LOBSTER_BLUE)
       .setAuthor({ name: 'Lobster · Community stats' })
       .setTitle(`👥 ${guild.name} · Members`)
       .setDescription(`This server has **${total.toLocaleString()} members**.`)

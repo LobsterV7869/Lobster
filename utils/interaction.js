@@ -13,7 +13,7 @@ const INTERACTIONS = {
   kick: { verb: 'kicks', self: 'kicks themselves', emoji: '🦵', description: 'Kick a member with an anime GIF', color: 0xffa94d },
   punch: { verb: 'punches', self: 'punches themselves', emoji: '👊', description: 'Punch a member with an anime GIF', color: 0xffa94d },
   bonk: { verb: 'bonks', self: 'bonks themselves', emoji: '🔨', description: 'Bonk a member with an anime GIF', color: 0xffa94d },
-  yeet: { verb: 'yeets', self: 'yeets themselves', emoji: '🚀', description: 'Yeet a member into orbit', color: 0x5865f2 },
+  yeet: { verb: 'yeets', self: 'yeets themselves', emoji: '🚀', description: 'Yeet a member into orbit', color: 0x5BA6FB },
   shoot: { verb: 'shoots', self: 'shoots themselves', emoji: '🔫', description: 'Shoot a member with an anime GIF', color: 0xff4d4d },
   kill: { verb: 'kills', self: 'kills themselves', emoji: '🔪', description: 'Eliminate a member with an anime GIF', color: 0xff4d4d }
 };

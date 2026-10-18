@@ -138,7 +138,7 @@ async function finishGiveaway(giveaway) {
     .setDescription(
       `Prize: **${giveaway.prize}**\nWinners: ${winnerMentions.length ? winnerMentions.join(', ') : 'No winners'}`
     )
-    .setColor(0xff6b35)
+    .setColor(0x5BA6FB)
     .setFooter({ text: '🦞 Lobster' });
   await message.edit(styleCommandPayload('giveaway', channel.guild, { embeds: [endedEmbed], components: [] }));
   if (winnerMentions.length) {
@@ -174,15 +174,15 @@ function recordWindow(map, key, timestamp, duration) {
 }
 
 const LOG_META = {
-  general: { emoji: '📋', label: 'General', color: 0x5865f2 },
+  general: { emoji: '📋', label: 'General', color: 0x5BA6FB },
   moderation: { emoji: '🔨', label: 'Moderation', color: 0xed4245 },
-  members: { emoji: '👥', label: 'Members', color: 0x5865f2 },
-  messages: { emoji: '💬', label: 'Messages', color: 0x5865f2 },
-  channels: { emoji: '📚', label: 'Channels', color: 0x5865f2 },
+  members: { emoji: '👥', label: 'Members', color: 0x5BA6FB },
+  messages: { emoji: '💬', label: 'Messages', color: 0x5BA6FB },
+  channels: { emoji: '📚', label: 'Channels', color: 0x5BA6FB },
   roles: { emoji: '🎭', label: 'Roles', color: 0xeb459e },
   voice: { emoji: '🔊', label: 'Voice', color: 0x57f287 },
   emojis: { emoji: '😄', label: 'Emojis', color: 0xfee75c },
-  levels: { emoji: '📈', label: 'Levels', color: 0x5865f2 },
+  levels: { emoji: '📈', label: 'Levels', color: 0x5BA6FB },
   security: { emoji: '🚨', label: 'Security', color: 0xed4245 }
 };
 
@@ -365,7 +365,7 @@ client.on('messageDelete', message => {
     message.guild,
     'Message deleted',
     `A message by ${author} was deleted in <#${message.channelId}>.`,
-    0x5865f2,
+    0x5BA6FB,
     'messages'
   );
 });
@@ -377,17 +377,17 @@ client.on('messageUpdate', (oldMessage, newMessage) => {
     newMessage.guild,
     'Message edited',
     `A message by ${author} was edited in <#${newMessage.channelId}>.`,
-    0x5865f2,
+    0x5BA6FB,
     'messages'
   );
 });
 
 client.on('channelCreate', channel => {
-  if (channel.guild) logGuildEvent(channel.guild, 'Channel created', `A channel was created: <#${channel.id}>.`, 0x5865f2, 'channels');
+  if (channel.guild) logGuildEvent(channel.guild, 'Channel created', `A channel was created: <#${channel.id}>.`, 0x5BA6FB, 'channels');
 });
 
 client.on('channelDelete', channel => {
-  if (channel.guild) logGuildEvent(channel.guild, 'Channel deleted', `A channel was deleted: **${channel.name}**.`, 0x5865f2, 'channels');
+  if (channel.guild) logGuildEvent(channel.guild, 'Channel deleted', `A channel was deleted: **${channel.name}**.`, 0x5BA6FB, 'channels');
 });
 
 client.on('channelUpdate', (oldChannel, newChannel) => {
@@ -396,14 +396,14 @@ client.on('channelUpdate', (oldChannel, newChannel) => {
       newChannel.guild,
       'Channel updated',
       `A channel was updated: <#${newChannel.id}>${oldChannel.name !== newChannel.name ? ` (previously **${oldChannel.name}**)` : ''}.`,
-      0x5865f2,
+      0x5BA6FB,
       'channels'
     );
   }
 });
 
 client.on('guildMemberRemove', async member => {
-  logGuildEvent(member.guild, 'Member left', `<@${member.id}> left the server.`, 0x5865f2, 'members');
+  logGuildEvent(member.guild, 'Member left', `<@${member.id}> left the server.`, 0x5BA6FB, 'members');
   const settings = db.getSettings(member.guild.id);
   if (!settings.farewellEnabled || !settings.farewellChannel) return;
   const channel = member.guild.channels.cache.get(settings.farewellChannel);
@@ -423,7 +423,7 @@ client.on('guildMemberAdd', member => {
     member.guild,
     'Member joined',
     `<@${member.id}> joined the server. Member count: **${member.guild.memberCount}**.`,
-    0x5865f2,
+    0x5BA6FB,
     'members'
   );
 });
@@ -434,7 +434,7 @@ client.on('guildMemberUpdate', (oldMember, newMember) => {
       newMember.guild,
       'Nickname changed',
       `<@${newMember.id}>'s nickname changed from **${oldMember.nickname || 'none'}** to **${newMember.nickname || 'none'}**.`,
-      0x5865f2,
+      0x5BA6FB,
       'members'
     );
   }
@@ -447,16 +447,16 @@ client.on('guildMemberUpdate', (oldMember, newMember) => {
       ...added.map(id => `added <@&${id}>`),
       ...removed.map(id => `removed <@&${id}>`)
     ];
-    logGuildEvent(newMember.guild, 'Member roles changed', `<@${newMember.id}>: ${changes.join(', ')}.`, 0x5865f2, 'roles');
+    logGuildEvent(newMember.guild, 'Member roles changed', `<@${newMember.id}>: ${changes.join(', ')}.`, 0x5BA6FB, 'roles');
   }
 });
 
 client.on('roleCreate', role => {
-  logGuildEvent(role.guild, 'Role created', `Role created: <@&${role.id}>.`, 0x5865f2, 'roles');
+  logGuildEvent(role.guild, 'Role created', `Role created: <@&${role.id}>.`, 0x5BA6FB, 'roles');
 });
 
 client.on('roleDelete', role => {
-  logGuildEvent(role.guild, 'Role deleted', `Role deleted: **${role.name}**.`, 0x5865f2, 'roles');
+  logGuildEvent(role.guild, 'Role deleted', `Role deleted: **${role.name}**.`, 0x5BA6FB, 'roles');
 });
 
 client.on('roleUpdate', (oldRole, newRole) => {
@@ -465,7 +465,7 @@ client.on('roleUpdate', (oldRole, newRole) => {
       newRole.guild,
       'Role updated',
       `Role <@&${newRole.id}> was updated${oldRole.name !== newRole.name ? ` (previously **${oldRole.name}**)` : ''}.`,
-      0x5865f2,
+      0x5BA6FB,
       'roles'
     );
   }
@@ -479,19 +479,19 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     : !newState.channelId
       ? `left <#${oldState.channelId}>`
       : `moved from <#${oldState.channelId}> to <#${newState.channelId}>`;
-  logGuildEvent(member.guild, 'Voice channel update', `<@${member.id}> ${change}.`, 0x5865f2, 'voice');
+  logGuildEvent(member.guild, 'Voice channel update', `<@${member.id}> ${change}.`, 0x5BA6FB, 'voice');
 });
 
 client.on('emojiCreate', emoji => {
-  logGuildEvent(emoji.guild, 'Emoji created', `Emoji **${emoji.name}** was added.`, 0x5865f2, 'emojis');
+  logGuildEvent(emoji.guild, 'Emoji created', `Emoji **${emoji.name}** was added.`, 0x5BA6FB, 'emojis');
 });
 
 client.on('emojiDelete', emoji => {
-  logGuildEvent(emoji.guild, 'Emoji deleted', `Emoji **${emoji.name}** was removed.`, 0x5865f2, 'emojis');
+  logGuildEvent(emoji.guild, 'Emoji deleted', `Emoji **${emoji.name}** was removed.`, 0x5BA6FB, 'emojis');
 });
 
 client.on('emojiUpdate', (oldEmoji, newEmoji) => {
-  logGuildEvent(newEmoji.guild, 'Emoji updated', `Emoji **${oldEmoji.name}** was renamed to **${newEmoji.name}**.`, 0x5865f2, 'emojis');
+  logGuildEvent(newEmoji.guild, 'Emoji updated', `Emoji **${oldEmoji.name}** was renamed to **${newEmoji.name}**.`, 0x5BA6FB, 'emojis');
 });
 
 const auditLogCategories = new Map([
@@ -548,7 +548,7 @@ client.on('guildAuditLogEntryCreate', async (entry, guild) => {
       guild,
       loggedAction[0],
       `${target} · action by ${executor}${reason}`,
-      loggedAction[1] === 'moderation' ? 0xd64545 : 0x5865f2,
+      loggedAction[1] === 'moderation' ? 0xd64545 : 0x5BA6FB,
       loggedAction[1]
     );
   }
@@ -702,7 +702,7 @@ client.on('messageCreate', async message => {
         : message.channel;
       if (levelChannel?.isTextBased()) {
         const embed = new EmbedBuilder()
-          .setColor(0xff6b35)
+          .setColor(0x5BA6FB)
           .setAuthor({ name: 'Level up!', iconURL: message.author.displayAvatarURL() })
           .setTitle('🦞 Level up!')
           .setDescription(`${message.author} reached **level ${result.level}**. Keep the good conversations going!`)
@@ -720,7 +720,7 @@ client.on('messageCreate', async message => {
           message.guild,
           'Level up',
           `<@${message.author.id}> reached **level ${result.level}**.`,
-          0x5865f2,
+          0x5BA6FB,
           'levels'
         );
       }
@@ -1138,7 +1138,7 @@ client.on('interactionCreate', async interaction => {
               })
               .setTitle('🎫 Support request')
               .setDescription(prompt)
-              .setColor(0xff6b35)
+              .setColor(0x5BA6FB)
               .addFields(
                 { name: '👤 Opened by', value: `${interaction.user}`, inline: true },
                 { name: '🕒 Opened', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
@@ -1189,7 +1189,7 @@ client.on('interactionCreate', async interaction => {
         const transcript = await createTicketTranscript(interaction.channel);
         await transcriptChannel.send(styleCommandPayload('ticket-panel', interaction.guild, {
           embeds: [new EmbedBuilder()
-            .setColor(0xff6b35)
+            .setColor(0x5BA6FB)
             .setTitle('Ticket transcript')
             .setDescription(`Transcript for **#${interaction.channel.name}**\nOpened by <@${ticketOwnerId}> · Closed by <@${interaction.user.id}>.`)],
           files: [transcript],

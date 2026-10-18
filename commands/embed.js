@@ -20,7 +20,7 @@ module.exports = {
   async run({ interaction, message, isSlash, args, channel }) {
     let title;
     let description;
-    let color = '#FF6B35';
+    let color = '#5BA6FB';
     let image;
     let footer;
     let target = channel;
@@ -52,7 +52,7 @@ module.exports = {
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!/^#[\da-f]{6}$/i.test(color)) {
-      const response = 'Color must be a six-digit hex value, such as `#FF6B35`.';
+      const response = 'Color must be a six-digit hex value, such as `#5BA6FB`.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (image) {

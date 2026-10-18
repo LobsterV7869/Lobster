@@ -11,7 +11,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle('📜 Server Rules')
       .setDescription('1. Be respectful to others.\n2. No spamming or advertising.\n3. No NSFW content.\n4. Follow Discord ToS.\n5. Have fun!')
-      .setColor(0xff6b35)
+      .setColor(0x5BA6FB)
       .setAuthor({ name: 'Lobster · Server guide' })
       .setFooter({ text: 'Please follow these rules to keep the community welcoming.' });
     

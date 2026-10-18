@@ -414,7 +414,7 @@ module.exports = {
     }
 
     const ticketEmbed = new EmbedBuilder()
-      .setColor(settings.ticketColor || 0xff6b35)
+      .setColor(settings.ticketColor || 0x5BA6FB)
       .setAuthor({
         name: `🎫 ${guild.name} · Support`,
         iconURL: guild.iconURL() || undefined
@@ -459,7 +459,7 @@ module.exports = {
     db.updateSetting(guild.id, 'ticketPanelMessageId', ticketPanel.id);
 
     const embed = new EmbedBuilder()
-      .setColor(0xff6b35)
+      .setColor(0x5BA6FB)
       .setAuthor({ name: `${guild.name} · Server setup`, iconURL: guild.iconURL() || undefined })
       .setTitle('🦞 Your server layout is ready')
       .setDescription(

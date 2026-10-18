@@ -16,7 +16,7 @@ module.exports = {
     db.setAFK(user.id, guild.id, reason, Date.now());
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(0x5BA6FB)
       .setDescription(`💤 I have set your AFK: **${reason}**`);
     
     if (isSlash) await interaction.reply({ embeds: [embed] });

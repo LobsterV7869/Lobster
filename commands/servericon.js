@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { LOBSTER_ORANGE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -10,7 +10,7 @@ module.exports = {
     if (!guild.icon) return isSlash ? interaction.reply('🖼️ This server has no icon set.') : message.reply('🖼️ This server has no icon set.');
 
     const embed = new EmbedBuilder()
-      .setColor(LOBSTER_ORANGE)
+      .setColor(LOBSTER_BLUE)
       .setAuthor({ name: 'Lobster · Server icon', iconURL: guild.iconURL() })
       .setTitle(`🖼️ ${guild.name}`)
       .setImage(guild.iconURL({ dynamic: true, size: 512 }))

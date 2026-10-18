@@ -14,7 +14,7 @@ module.exports = {
       ).join('\n')
       : 'No one has earned XP yet. Start chatting to claim the top spot!';
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(0x5BA6FB)
       .setTitle(`${guild.name} · Level leaderboard`)
       .setDescription(description)
       .setFooter({ text: 'Earn XP by chatting once per minute.' });

@@ -60,7 +60,7 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(0x5BA6FB)
       .setDescription(`Counting is enabled in ${targetChannel}. Start from **${settings.lastCount + 1}**.`);
     return isSlash
       ? interaction.reply({ embeds: [embed] })

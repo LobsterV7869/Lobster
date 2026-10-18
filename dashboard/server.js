@@ -383,7 +383,7 @@ function createDashboardServer(client) {
     }
     if (Object.hasOwn(body, 'welcomeColor')) {
       if (typeof body.welcomeColor !== 'string' || !/^#[\da-f]{6}$/i.test(body.welcomeColor)) {
-        throw new Error('Welcome color must be a six-digit hex color, such as #FF6B35.');
+        throw new Error('Welcome color must be a six-digit hex color, such as #5BA6FB.');
       }
       updates.welcomeColor = body.welcomeColor;
     }
@@ -918,7 +918,7 @@ function createDashboardServer(client) {
       }
       const panel = {
         embeds: [new EmbedBuilder()
-          .setColor(0xed6735)
+          .setColor(0x5BA6FB)
           .setTitle('Verify to access the server')
           .setDescription('Press the button below to verify your Discord account and receive the verified member role.')
           .setFooter({ text: 'Lobster verification' })],
@@ -963,7 +963,7 @@ function createDashboardServer(client) {
       }
       await channel.send({
         embeds: [new EmbedBuilder()
-          .setColor(0x5865f2)
+          .setColor(0x5BA6FB)
           .setTitle('Verification log test')
           .setDescription(`Verification logs are working. Test requested by <@${req.dashboardSession.user.id}>.`)
           .setTimestamp()],

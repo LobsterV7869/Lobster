@@ -118,7 +118,7 @@ module.exports = {
 
     const updated = db.getSettings(guild.id);
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
+      .setColor(0x5BA6FB)
       .setTitle('Server security')
       .setDescription([
         `Minimum account age: **${updated.minAccountAgeDays ? `${updated.minAccountAgeDays} days` : 'off'}**`,

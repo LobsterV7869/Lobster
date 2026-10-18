@@ -43,7 +43,7 @@ module.exports = {
     .addStringOption(option => option.setName('message').setDescription('Panel description').setMaxLength(4000))
     .addStringOption(option => option.setName('button').setDescription('Button label').setMaxLength(80))
     .addStringOption(option => option.setName('image').setDescription('Panel image URL').setMaxLength(500))
-    .addStringOption(option => option.setName('color').setDescription('Embed color, e.g. #FF6B35').setMaxLength(7))
+    .addStringOption(option => option.setName('color').setDescription('Embed color, e.g. #5BA6FB').setMaxLength(7))
     .addStringOption(option => option.setName('prompt').setDescription('Opening message inside each ticket').setMaxLength(1000)),
   category: 'Community',
   permissions: [PermissionFlagsBits.ManageGuild],
@@ -172,7 +172,7 @@ module.exports = {
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (key === 'ticketColor' && !/^#[\da-f]{6}$/i.test(value)) {
-        const response = 'Color must be a six-digit hex value such as `#FF6B35`.';
+        const response = 'Color must be a six-digit hex value such as `#5BA6FB`.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (key === 'ticketImage' && !validUrl(value)) {

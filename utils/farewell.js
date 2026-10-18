@@ -24,7 +24,7 @@ function farewellEmbed(member, settings) {
     .reduce((text, [key, value]) => text.replaceAll(key, value), settings.farewellMessage || '')
     .slice(0, 4000)) || `**${member.user.username}** has left **${member.guild.name}**.`;
   const embed = new EmbedBuilder()
-    .setColor(hexToInt(settings.welcomeColor, 0xff6b35))
+    .setColor(hexToInt(settings.welcomeColor, 0x5BA6FB))
     .setAuthor({
       name: `👋 Goodbye from ${member.guild.name}`,
       iconURL: member.guild.iconURL() || undefined
