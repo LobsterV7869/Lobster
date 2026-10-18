@@ -663,7 +663,7 @@ client.on('messageCreate', async message => {
       });
     }
 
-    const prefix = settings.prefix || 'p';
+    const prefix = settings.prefix || 'l';
     if (message.content.toLowerCase().startsWith(prefix.toLowerCase())) {
       const args = parseArguments(message.content.slice(prefix.length).trim());
       const commandName = args.shift()?.toLowerCase();
@@ -770,7 +770,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.followUp({ content: 'That help category is no longer available. Run `/help` to open a new menu.', ephemeral: true });
         return;
       }
-      const prefix = db.getSettings(interaction.guildId).prefix || 'p';
+      const prefix = db.getSettings(interaction.guildId).prefix || 'l';
       const embed = category === 'Home'
         ? overviewEmbed(client, prefix, interaction.guild)
         : categoryEmbed(category, client.commands.filter(command => commandCategory(command) === category), prefix, interaction.guild, client);

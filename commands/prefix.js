@@ -11,7 +11,7 @@ module.exports = {
   async run({ interaction, message, isSlash, args, guild }) {
     const newPrefix = isSlash ? interaction.options.getString('new_prefix') : args.join(' ');
     if (!newPrefix) {
-      const currentPrefix = db.getSettings(guild.id).prefix || 'p';
+      const currentPrefix = db.getSettings(guild.id).prefix || 'l';
       return isSlash
         ? interaction.reply({ content: `This server's prefix is \`${currentPrefix}\`.`, ephemeral: true })
         : message.reply(`This server's prefix is \`${currentPrefix}\`.`);

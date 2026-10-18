@@ -43,7 +43,7 @@ function write(database) {
 function defaults(guildId) {
   return {
     guildId,
-    prefix: 'p',
+    prefix: 'l',
     backupsEnabled: false,
     autorole: null,
     welcomer: 0,

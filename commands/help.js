@@ -152,7 +152,7 @@ module.exports = {
     .setDescription('Browse Lobster commands and setup guides'),
   category: 'Utility',
   async run({ client, interaction, message, isSlash, guild }) {
-    const prefix = db.getSettings(guild.id).prefix || 'p';
+    const prefix = db.getSettings(guild.id).prefix || 'l';
     const response = {
       embeds: [overviewEmbed(client, prefix, guild)],
       components: [categoryMenu(), helpButtons()]
