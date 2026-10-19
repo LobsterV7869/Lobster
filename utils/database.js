@@ -14,7 +14,10 @@ function emptyDatabase() {
     afk: {},
     levels: {},
     autoReplies: {},
-    reactionRoles: {}
+    reactionRoles: {},
+    warnings: {},
+    warningCounter: {},
+    tempbans: {}
   };
 }
 
@@ -31,6 +34,9 @@ function read() {
   database.levels ||= {};
   database.autoReplies ||= {};
   database.reactionRoles ||= {};
+  database.warnings ||= {};
+  database.warningCounter ||= {};
+  database.tempbans ||= {};
   return database;
 }
 
@@ -363,5 +369,62 @@ module.exports = {
 
   getReactionRole(guildId, messageId, emoji) {
     return read().reactionRoles[guildId]?.[messageId]?.[emoji] || null;
+  },
+
+  getWarnings(guildId, userId) {
+    return read().warnings[guildId]?.[userId] || [];
+  },
+
+  addWarning(guildId, userId, moderatorId, reason) {
+    const database = read();
+    database.warnings[guildId] ||= {};
+    const list = (database.warnings[guildId][userId] ||= []);
+    const id = (database.warningCounter[guildId] || 0) + 1;
+    database.warningCounter[guildId] = id;
+    const warning = { id, moderatorId, reason, timestamp: Date.now() };
+    list.push(warning);
+    write(database);
+    return warning;
+  },
+
+  removeWarning(guildId, userId, id) {
+    const database = read();
+    const list = database.warnings[guildId]?.[userId];
+    if (!list) return false;
+    const index = list.findIndex(warning => warning.id === Number(id));
+    if (index === -1) return false;
+    list.splice(index, 1);
+    if (!list.length) delete database.warnings[guildId][userId];
+    write(database);
+    return true;
+  },
+
+  clearWarnings(guildId, userId) {
+    const database = read();
+    const list = database.warnings[guildId]?.[userId];
+    if (!list) return 0;
+    delete database.warnings[guildId][userId];
+    write(database);
+    return list.length;
+  },
+
+  addTempBan(guildId, userId, expiresAt, moderatorId, reason) {
+    const database = read();
+    database.tempbans[`${guildId}_${userId}`] = { guildId, userId, expiresAt, moderatorId, reason };
+    write(database);
+    return true;
+  },
+
+  getTempBans() {
+    return Object.values(read().tempbans);
+  },
+
+  removeTempBan(guildId, userId) {
+    const database = read();
+    const key = `${guildId}_${userId}`;
+    if (!database.tempbans[key]) return false;
+    delete database.tempbans[key];
+    write(database);
+    return true;
   }
 };

@@ -62,13 +62,15 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildModeration,
-    GatewayIntentBits.GuildMessageReactions
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildPresences
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 const dashboardServer = createDashboardServer(client);
 
 client.commands = new Collection();
+client.aliases = new Collection();
 const commandDirectory = path.join(__dirname, 'commands');
 for (const file of fs.readdirSync(commandDirectory).filter(name => name.endsWith('.js'))) {
   const command = require(path.join(commandDirectory, file));
@@ -79,6 +81,9 @@ for (const file of fs.readdirSync(commandDirectory).filter(name => name.endsWith
     throw new Error(`Duplicate command name: ${command.data.name}`);
   }
   client.commands.set(command.data.name, command);
+  for (const alias of command.aliases || []) {
+    client.aliases.set(alias.toLowerCase(), command.data.name);
+  }
 }
 
 function styleCommandPayload(commandName, guild, payload) {
@@ -319,6 +324,30 @@ async function endDueGiveaways() {
   }
 }
 
+async function processDueTempBans() {
+  const due = db.getTempBans().filter(ban => ban.expiresAt <= Date.now());
+  for (const ban of due) {
+    try {
+      const guild = client.guilds.cache.get(ban.guildId);
+      if (guild) {
+        await guild.bans.remove(ban.userId, `Temporary ban expired (Lobster)`).catch(error => {
+          if (error.code !== 10026) throw error;
+        });
+        logGuildEvent(
+          guild,
+          'Temporary ban expired',
+          `<@${ban.userId}> was automatically unbanned.`,
+          0x5BA6FB,
+          'moderation'
+        );
+      }
+      db.removeTempBan(ban.guildId, ban.userId);
+    } catch (error) {
+      console.error(`Could not lift temporary ban for ${ban.userId} in ${ban.guildId}:`, error);
+    }
+  }
+}
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
   client.user.setActivity('Lobster · /help', { type: ActivityType.Playing });
@@ -331,6 +360,7 @@ client.once('ready', () => {
   }
   voiceManager.restore(client).catch(error => console.error('Voice connection restore failed:', error));
   endDueGiveaways().catch(error => console.error('Giveaway recovery failed:', error));
+  processDueTempBans().catch(error => console.error('Temporary ban recovery failed:', error));
   const runDueBackups = async () => {
     for (const guild of client.guilds.cache.values()) {
       if (!db.getSettings(guild.id).backupsEnabled || backups.isBackupInProgress(guild.id)) continue;
@@ -356,6 +386,9 @@ client.once('ready', () => {
   setInterval(() => {
     endDueGiveaways().catch(error => console.error('Giveaway check failed:', error));
   }, 15000);
+  setInterval(() => {
+    processDueTempBans().catch(error => console.error('Temporary ban check failed:', error));
+  }, 30000);
 });
 
 client.on('messageDelete', message => {
@@ -667,7 +700,8 @@ client.on('messageCreate', async message => {
     if (message.content.toLowerCase().startsWith(prefix.toLowerCase())) {
       const args = parseArguments(message.content.slice(prefix.length).trim());
       const commandName = args.shift()?.toLowerCase();
-      const command = client.commands.get(commandName);
+      const command = client.commands.get(commandName)
+        || client.commands.get(client.aliases.get(commandName));
       if (command) {
         await executeCommand(command, {
           client,
