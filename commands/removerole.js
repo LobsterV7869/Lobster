@@ -20,7 +20,7 @@ module.exports = {
       role = message.mentions.roles.first() || guild.roles.cache.get(args[1]);
     }
 
-    if (!member || !role) return isSlash ? interaction.reply('Usage: l removerole @user @role') : message.reply('Usage: l removerole @user @role');
+    if (!member || !role) return isSlash ? interaction.reply('➖ Whose role should I take away?\n`l removerole @user @role`\n-# Mention the member, then the role.') : message.reply('➖ Whose role should I take away?\n`l removerole @user @role`\n-# Mention the member, then the role.');
     const targetError = roleHierarchyError(actor, role, guild);
     if (targetError) return isSlash ? interaction.reply({ content: targetError, ephemeral: true }) : message.reply(targetError);
 

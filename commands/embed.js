@@ -48,7 +48,7 @@ module.exports = {
     }
 
     if (!description?.trim()) {
-      const response = 'Usage: l embed --title <title> --message <text>';
+      const response = '📝 Build a custom embed:\n`l embed --title <title> --message <text>`\n-# Add `--color <hex>` and `--image <url>` too.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!/^#[\da-f]{6}$/i.test(color)) {

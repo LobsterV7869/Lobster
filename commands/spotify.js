@@ -49,7 +49,7 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Usage: l spotify [@user]';
+      const response = '🎧 Whose music should I show?\n`l spotify [@user]`\n-# They need Spotify connected to their profile.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

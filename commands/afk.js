@@ -10,7 +10,7 @@ module.exports = {
   async run({ interaction, message, isSlash, args, user, guild }) {
     const reason = isSlash ? interaction.options.getString('reason') || 'No reason' : args.join(' ') || 'No reason';
     if (reason.length > 500) {
-      const response = 'Your AFK reason must be 500 characters or fewer.';
+      const response = '💤 Keep your AFK reason under 500 characters.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     db.setAFK(user.id, guild.id, reason, Date.now());

@@ -24,17 +24,17 @@ module.exports = {
     }
 
     if (!member || isNaN(duration)) {
-      const response = 'Usage: l mute @user <duration in minutes> [reason]';
+      const response = '🔇 Who are we timing out?\n`l mute @user <minutes> [reason]`\n-# Anywhere from 1 to 40320 minutes (28 days).';
       return isSlash
-        ? interaction.reply({ content: 'Usage: l mute @user <duration in minutes> [reason]', ephemeral: true })
+        ? interaction.reply({ content: '🔇 Who are we timing out?\n`l mute @user <minutes> [reason]`\n-# Anywhere from 1 to 40320 minutes (28 days).', ephemeral: true })
         : message.reply(response);
     }
     if (reason.length > 512) {
-      const response = 'The timeout reason must be 512 characters or fewer.';
+      const response = '✍️ Keep the reason under 512 characters.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!Number.isInteger(duration) || duration < 1 || duration > 40320) {
-      const response = 'Duration must be between 1 and 40320 minutes.';
+      const response = '⏱️ Pick a duration between 1 and 40320 minutes (28 days).';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const hierarchyError = memberHierarchyError(actor, member, guild);

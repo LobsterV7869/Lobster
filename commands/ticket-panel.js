@@ -129,34 +129,34 @@ module.exports = {
     }
 
     if (!staffRole || staffRole.id === guild.id || staffRole.managed) {
-      const response = 'Choose a regular staff role (not @everyone or an integration-managed role).';
+      const response = '🎫 Choose a regular staff role (not @everyone or an integration-managed role).';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!targetChannel?.isTextBased() || !targetChannel.messages) {
-      const response = 'Choose a text channel for the panel.';
+      const response = '🎫 Choose a text channel for the panel.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (category && category.type !== ChannelType.GuildCategory) {
-      const response = 'The ticket category must be a server category channel.';
+      const response = '🎫 The ticket category must be a server category channel.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (transcriptEnabled && (!transcriptChannel?.isTextBased() || transcriptChannel.type !== ChannelType.GuildText)) {
-      const response = 'Choose a server text channel for ticket transcripts, or disable transcripts with `transcript_enabled:false`.';
+      const response = '🎫 Choose a server text channel for ticket transcripts, or disable them with `transcript_enabled:false`.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (transcriptEnabled && !transcriptChannel.permissionsFor(guild.members.me)
       ?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles])) {
-      const response = 'I need View Channel, Send Messages, and Attach Files permissions in the transcript channel.';
+      const response = '🎫 I need View Channel, Send Messages, and Attach Files permissions in the transcript channel.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (transcriptEnabled && transcriptChannel.permissionsFor(guild.roles.everyone)
       ?.has(PermissionFlagsBits.ViewChannel)) {
-      const response = 'Ticket transcripts can contain private conversations. Make the transcript channel staff-only before selecting it.';
+      const response = '🔒 Ticket transcripts can contain private conversations — make the transcript channel staff-only first.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     for (const [key, value] of Object.entries(updates)) {
       if (!value.trim()) {
-        const response = 'Panel text and button labels cannot be empty.';
+        const response = '🎫 Panel text and button labels cannot be empty.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       const maxLengths = {
@@ -172,11 +172,11 @@ module.exports = {
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (key === 'ticketColor' && !/^#[\da-f]{6}$/i.test(value)) {
-        const response = 'Color must be a six-digit hex value such as `#5BA6FB`.';
+        const response = '🎨 Color must be a six-digit hex value such as `#5BA6FB`.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (key === 'ticketImage' && !validUrl(value)) {
-        const response = 'Panel image must be a valid HTTP or HTTPS URL.';
+        const response = '🎫 Panel image must be a valid HTTP or HTTPS URL.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
     }

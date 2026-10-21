@@ -14,7 +14,7 @@ module.exports = {
     if (isSlash) member = interaction.options.getMember('target');
     else member = message.mentions.members.first() || guild.members.cache.get(args[0]);
 
-    if (!member) return isSlash ? interaction.reply('❌ I could not find that member.') : message.reply('❌ I could not find that member.');
+    if (!member) return isSlash ? interaction.reply('🔇 Who should I unmute? Mention an active member.') : message.reply('🔇 Who should I unmute? Mention an active member.');
     const hierarchyError = memberHierarchyError(actor, member, guild);
     if (hierarchyError) return isSlash
       ? interaction.reply({ content: hierarchyError, ephemeral: true })

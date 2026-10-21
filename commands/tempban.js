@@ -29,17 +29,17 @@ module.exports = {
     }
 
     if (!user || !durationInput) {
-      const response = 'Usage: l tempban @user <duration> [reason]';
+      const response = '⏳ Who are we banning for a while?\n`l tempban @user <duration> [reason]`\n-# They get unbanned automatically when time is up.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (user.id === moderator.id || user.id === guild.ownerId) {
-      const response = 'You cannot tempban yourself or the server owner.';
+      const response = '🙅 I cannot tempban you or the server owner.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 
     const duration = parseDuration(durationInput);
     if (!duration || duration > MAX_DURATION) {
-      const response = 'Give a duration between 1 minute and 365 days (e.g. `10m`, `2h`, `7d`).';
+      const response = '⏱️ Pick between 1 minute and 365 days — try `10m`, `2h` or `7d`.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

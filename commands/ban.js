@@ -21,17 +21,17 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Usage: l ban @user [reason]';
+      const response = '🔨 Who are we banning?\n`l ban @user [reason]`\n-# Name the member, plus a reason if you want it logged.';
       return isSlash
-        ? interaction.reply({ content: 'Usage: l ban @user [reason]', ephemeral: true })
+        ? interaction.reply({ content: '🔨 Who are we banning?\n`l ban @user [reason]`\n-# Name the member, plus a reason if you want it logged.', ephemeral: true })
         : message.reply(response);
     }
     if (reason.length > 512) {
-      const response = 'The ban reason must be 512 characters or fewer.';
+      const response = '✍️ Keep the reason under 512 characters.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (user.id === moderator.id || user.id === guild.ownerId) {
-      const response = 'You cannot ban yourself or the server owner.';
+      const response = '🙅 I cannot ban you or the server owner — pick someone else.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const targetMember = guild.members.cache.get(user.id) || await guild.members.fetch(user.id).catch(() => null);

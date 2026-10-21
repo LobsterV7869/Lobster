@@ -12,7 +12,7 @@ module.exports = {
     if (isSlash) user = interaction.options.getUser('target') || interaction.user;
     else user = message.mentions.users.first() || (args[0] ? await guild.client.users.fetch(args[0]).catch(() => null) : message.author);
 
-    if (!user) return isSlash ? interaction.reply('Usage: l avatar [@user]') : message.reply('Usage: l avatar [@user]');
+    if (!user) return isSlash ? interaction.reply('🖼️ Whose avatar do you want to see?\n`l avatar [@user]`\n-# No mention? I will show yours.') : message.reply('🖼️ Whose avatar do you want to see?\n`l avatar [@user]`\n-# No mention? I will show yours.');
 
     const embed = new EmbedBuilder()
       .setColor(LOBSTER_BLUE)

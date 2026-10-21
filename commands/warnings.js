@@ -21,7 +21,7 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Usage: l warnings @user';
+      const response = '📋 Whose warnings should I pull up?\n`l warnings @user`\n-# Shows every warning, who gave it, and when.';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);

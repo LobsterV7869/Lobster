@@ -11,9 +11,9 @@ module.exports = {
   async run({ interaction, message, isSlash, args, guild }) {
     const id = isSlash ? interaction.options.getString('id') : args[0];
 
-    if (!id) return isSlash ? interaction.reply('Usage: l unban <user id> [reason]') : message.reply('Usage: l unban <user id> [reason]');
+    if (!id) return isSlash ? interaction.reply('🔓 Who should I let back in?\n`l unban <user id> [reason]`\n-# Paste their user ID (not a mention) to lift the ban.') : message.reply('🔓 Who should I let back in?\n`l unban <user id> [reason]`\n-# Paste their user ID (not a mention) to lift the ban.');
     if (!/^\d{17,20}$/.test(id)) {
-      const response = 'Usage: l unban <user id> [reason]';
+      const response = '🔓 Who should I let back in?\n`l unban <user id> [reason]`\n-# Paste their user ID (not a mention) to lift the ban.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

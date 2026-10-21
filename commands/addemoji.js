@@ -6,12 +6,12 @@ const { logModeration } = require('../utils/modlog');
 const MAX_BYTES = 256 * 1024;
 
 function friendlyError(error) {
-  if (error?.code === 30008) return 'This server has reached its maximum number of emojis.';
-  if (error?.code === 50035) return 'Discord rejected that emoji. Check that the name uses only letters, numbers and underscores (2-32 characters).';
+  if (error?.code === 30008) return '📦 This server is full — you have hit the emoji limit.';
+  if (error?.code === 50035) return '🙃 Discord rejected that emoji. Use letters, numbers and underscores (2-32 characters).';
   if (error?.status === 413 || /larger than|too large|File size/i.test(error?.message || '')) {
-    return 'That image is too large. Emojis must be 256 KB or smaller.';
+    return '📦 That image is too big. Emojis must be 256 KB or smaller.';
   }
-  return error?.rawError?.message || error?.message || 'Discord could not add that emoji.';
+  return error?.rawError?.message || error?.message || '🙃 Discord could not add that emoji — try a different image.';
 }
 
 module.exports = {
@@ -34,16 +34,16 @@ module.exports = {
       message
     });
 
-    const usage = 'Usage: l addemoji <name> <image/emoji>';
+    const usage = '🖼️ Add a custom emoji:\n`l addemoji <name> <image/emoji>`\n-# Attach an image, or copy an existing emoji.';
     if (!input.name || !input.source) {
       return isSlash ? interaction.reply({ content: usage, ephemeral: true }) : message.reply(usage);
     }
     if (!/^[A-Za-z0-9_]{2,32}$/.test(input.name)) {
-      const response = 'The emoji name must be 2-32 characters using only letters, numbers and underscores.';
+      const response = '✍️ The emoji name needs 2-32 characters: letters, numbers and underscores only.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (input.size && input.size > MAX_BYTES) {
-      const response = 'That image is too large. Emojis must be 256 KB or smaller.';
+      const response = '📦 That image is too big. Emojis must be 256 KB or smaller.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

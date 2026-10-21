@@ -20,9 +20,9 @@ module.exports = {
       name = args.slice(1).join(' ');
     }
 
-    if (!member) return isSlash ? interaction.reply('Usage: l nickname @user [name]') : message.reply('Usage: l nickname @user [name]');
+    if (!member) return isSlash ? interaction.reply('🏷️ Whose nickname should I change?\n`l nickname @user [name]`\n-# Leave the name empty to reset it.') : message.reply('🏷️ Whose nickname should I change?\n`l nickname @user [name]`\n-# Leave the name empty to reset it.');
     if (name?.length > 32) {
-      const response = 'Nicknames must be 32 characters or fewer.';
+      const response = '✍️ Nicknames must be 32 characters or fewer.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const hierarchyError = memberHierarchyError(actor, member, guild);

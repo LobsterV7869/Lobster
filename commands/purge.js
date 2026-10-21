@@ -27,7 +27,7 @@ module.exports = {
     }
 
     if (!amount || amount < 1 || amount > 100) {
-      const response = 'Usage: l purge <amount> [@user] [bots|text]';
+      const response = '🧹 How many messages should I sweep away?\n`l purge <amount> [@user] [bots|text]`\n-# Up to 100 at a time.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 
@@ -41,7 +41,7 @@ module.exports = {
     }
 
     if (!targets.length) {
-      const response = 'No messages matched those filters.';
+      const response = '🔍 No messages matched those filters.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

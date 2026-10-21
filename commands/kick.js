@@ -21,13 +21,13 @@ module.exports = {
     }
 
     if (!member) {
-      const response = 'Usage: l kick @user [reason]';
+      const response = '👢 Who are we kicking?\n`l kick @user [reason]`\n-# A reason is optional, but great for the logs.';
       return isSlash
-        ? interaction.reply({ content: 'Member not found.', ephemeral: true })
+        ? interaction.reply({ content: '🔍 I could not find that member — mention them or paste their ID.', ephemeral: true })
         : message.reply(response);
     }
     if (reason.length > 512) {
-      const response = 'The kick reason must be 512 characters or fewer.';
+      const response = '✍️ Keep the reason under 512 characters.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const hierarchyError = memberHierarchyError(actor, member, guild);

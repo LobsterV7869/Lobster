@@ -149,7 +149,7 @@ module.exports = {
         if (index === -1) continue;
         const value = Number(args[index + 1]);
         if (!Number.isInteger(value) || value < minimum || value > maximum) {
-          return message.reply(`${flag} must be between ${minimum} and ${maximum}.`);
+          return message.reply(`⚙️ ${flag} must be between ${minimum} and ${maximum}.`);
         }
         rules[key] = value;
         updated = true;

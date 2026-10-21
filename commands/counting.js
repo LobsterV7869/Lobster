@@ -35,7 +35,7 @@ module.exports = {
 
     const targetChannel = channel || guild.channels.cache.get(settings.countingChannel);
     if (requestedState === true && !targetChannel?.isTextBased()) {
-      const response = 'Choose a text channel to enable counting.';
+      const response = '🔢 Choose a text channel to start counting in.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (targetChannel && !targetChannel.permissionsFor(guild.members.me)?.has([
@@ -44,7 +44,7 @@ module.exports = {
       PermissionFlagsBits.ReadMessageHistory,
       PermissionFlagsBits.AddReactions
     ])) {
-      const response = 'I need View Channel, Send Messages, Read Message History, and Add Reactions in the counting channel.';
+      const response = '🔢 I need View Channel, Send Messages, Read Message History, and Add Reactions in the counting channel.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!targetChannel) {

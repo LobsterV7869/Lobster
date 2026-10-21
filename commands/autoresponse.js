@@ -43,7 +43,7 @@ module.exports = {
     if (action === 'remove') {
       const trigger = isSlash ? interaction.options.getString('trigger') : args[1];
       if (!trigger) {
-        const text = 'Usage: l autoresponse remove <trigger>';
+        const text = '✍️ Which trigger should I remove?\n`l autoresponse remove <trigger>`\n-# See them all with `l autoresponse list`.';
         return isSlash ? interaction.reply({ content: text, ephemeral: true }) : message.reply(text);
       }
       const removed = db.removeAutoReply(guild.id, trigger);

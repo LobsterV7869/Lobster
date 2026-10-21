@@ -48,21 +48,21 @@ module.exports = {
     }
 
     if (!['add', 'remove', 'list'].includes(action)) {
-      const response = 'Use `reactionrole add #channel MESSAGE_ID 😀 @Role`, `reactionrole remove MESSAGE_ID 😀`, or `reactionrole list MESSAGE_ID`.';
+      const response = '🎭 Reaction roles made easy:\n`l reactionrole add <message id> <emoji> <@role>`\n`l reactionrole remove <message id> <emoji>`\n`l reactionrole list <message id>`';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!messageId || !/^\d{17,20}$/.test(messageId)) {
-      const response = 'Usage: l reactionrole add <message id> <emoji> <@role>';
+      const response = '🎭 Let us set up a reaction role:\n`l reactionrole add <message id> <emoji> <@role>`\n-# Members get the role when they react.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 
     if (action === 'add') {
       if (!channel && !isSlash) {
-        const response = 'Mention the channel containing the message.';
+        const response = '📌 Mention the channel that holds the message.';
         return message.reply(response);
       }
       if (!emoji || !role) {
-        const response = 'Choose an emoji and role.';
+        const response = '🎭 Choose both an emoji and a role.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       const hierarchyError = roleHierarchyError(member, role, guild);
@@ -71,7 +71,7 @@ module.exports = {
       }
       const targetChannel = channel || message.mentions.channels.first();
       if (!targetChannel?.isTextBased()) {
-        const response = 'Choose a text channel containing the message.';
+        const response = '📌 Choose a text channel containing the message.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       const targetMessage = await targetChannel.messages.fetch(messageId).catch(error => {
@@ -79,7 +79,7 @@ module.exports = {
         throw error;
       });
       if (!targetMessage) {
-        const response = 'I could not find that message in the selected channel.';
+        const response = '🔍 I could not find that message in the selected channel.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       const key = emojiKey(emoji);
@@ -97,7 +97,7 @@ module.exports = {
     const mappings = db.getReactionRoles(guild.id, messageId);
     if (action === 'remove') {
       if (!emoji || !db.removeReactionRole(guild.id, messageId, emojiKey(emoji))) {
-        const response = 'That reaction role was not found.';
+        const response = '🔍 That reaction role was not found.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       const response = 'Reaction role removed.';

@@ -24,11 +24,11 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Usage: l softban @user [reason]';
+      const response = '🧤 Who are we softbanning?\n`l softban @user [reason]`\n-# Kicks them and sweeps away the last 7 days of messages.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (user.id === moderator.id || user.id === guild.ownerId) {
-      const response = 'You cannot softban yourself or the server owner.';
+      const response = '🙅 I cannot softban you or the server owner.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const target = guild.members.cache.get(user.id) || await guild.members.fetch(user.id).catch(() => null);

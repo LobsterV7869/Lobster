@@ -32,7 +32,7 @@ module.exports = {
     }
 
     if (!role) {
-      const text = 'Usage: l roleall @role';
+      const text = '🎭 Which role should everyone get?\n`l roleall @role`\n-# Adds it to every member in the server.';
       return isSlash ? interaction.reply({ content: text, ephemeral: true }) : message.reply(text);
     }
 

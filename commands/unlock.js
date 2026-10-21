@@ -12,7 +12,7 @@ module.exports = {
     const settings = db.getSettings(guild.id);
     const lockedChannels = { ...settings.lockedChannels };
     if (!Object.prototype.hasOwnProperty.call(lockedChannels, channel.id)) {
-      const response = 'This channel is not locked by Lobster.';
+      const response = '🔓 This channel is not locked by Lobster.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     await channel.permissionOverwrites.edit(guild.id, { SendMessages: lockedChannels[channel.id] });

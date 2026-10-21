@@ -113,7 +113,7 @@ module.exports = {
         if (['on', 'true', 'yes', 'enable', 'enabled'].includes(stateArgument.toLowerCase())) requestedState = true;
         else if (['off', 'false', 'no', 'disable', 'disabled'].includes(stateArgument.toLowerCase())) requestedState = false;
         else {
-          const response = 'Use `--enabled on` or `--enabled off`.';
+          const response = '🪧 Use `--enabled on` or `--enabled off`.';
           return message.reply(response);
         }
       } else if (args.length === 0) {
@@ -124,7 +124,7 @@ module.exports = {
         const value = args[farewellStateIndex + 1]?.toLowerCase();
         if (['on', 'true', 'yes', 'enable', 'enabled'].includes(value)) farewellState = true;
         else if (['off', 'false', 'no', 'disable', 'disabled'].includes(value)) farewellState = false;
-        else return message.reply('Use `--farewell-enabled on` or `--farewell-enabled off`.');
+        else return message.reply('🪧 Use `--farewell-enabled on` or `--farewell-enabled off`.');
       }
       const farewellMessageIndex = args.indexOf('--farewell-message');
       if (farewellMessageIndex !== -1) {
@@ -169,7 +169,7 @@ module.exports = {
       && welcomeTarget
     );
     if (welcomeWillEnable && !welcomeTarget?.isTextBased()) {
-      const response = 'Choose a text channel before enabling welcome cards.';
+      const response = '🪧 Choose a text channel before enabling welcome cards.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (welcomeWillEnable && !welcomeTarget.permissionsFor(guild.members.me)?.has(botPermissions)) {
@@ -177,7 +177,7 @@ module.exports = {
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (farewellState === true && !farewellTarget?.isTextBased()) {
-      const response = 'Choose a departure channel before enabling farewell cards.';
+      const response = '🪧 Choose a departure channel before enabling farewell cards.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (farewellState === true && !farewellTarget.permissionsFor(guild.members.me)?.has(botPermissions)) {
@@ -188,7 +188,7 @@ module.exports = {
     for (const [key, value] of Object.entries(parsed)) {
       if (key === 'welcomeChannel') {
         if (!guild.channels.cache.get(value)?.isTextBased()) {
-          const response = 'Choose a text channel from this server.';
+          const response = '🪧 Choose a text channel from this server.';
           return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
         }
         continue;
@@ -196,7 +196,7 @@ module.exports = {
       if (key === 'farewellChannel') {
         const channel = guild.channels.cache.get(value);
         if (!channel?.isTextBased()) {
-          const response = 'Choose a departure channel from this server.';
+          const response = '🪧 Choose a departure channel from this server.';
           return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
         }
         continue;
@@ -216,7 +216,7 @@ module.exports = {
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (typeof value === 'string' && !value.trim() && !['welcomeImage', 'welcomeThumbnail', 'welcomeServerAddress'].includes(key)) {
-        const response = 'Welcome card text fields cannot be empty.';
+        const response = '🪧 Welcome card text fields cannot be empty.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (['welcomeImage', 'welcomeThumbnail'].includes(key) && value && !validUrl(value)) {
@@ -224,7 +224,7 @@ module.exports = {
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (key === 'welcomeColor' && !/^#[\da-f]{6}$/i.test(value)) {
-        const response = 'Color must be a six-digit hex value such as `#5BA6FB`.';
+        const response = '🎨 Color must be a six-digit hex value such as `#5BA6FB`.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
     }

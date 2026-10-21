@@ -37,18 +37,18 @@ module.exports = {
         const mention = message.mentions.users.first();
         const targetId = mention?.id || args[memberIndex + 1]?.replace(/[<@!>]/g, '');
         const targetMember = targetId ? await guild.members.fetch(targetId).catch(() => null) : null;
-        if (!targetMember) return message.reply('I could not find that server member.');
+        if (!targetMember) return message.reply('🔍 I could not find that member here.');
         displayName ||= targetMember.displayName;
         avatarURL = targetMember.user.displayAvatarURL({ extension: 'png', size: 256 });
       }
     }
 
     if (!text) {
-      const response = 'Usage: l speak <message>';
+      const response = '🗣️ What should I say?\n`l speak <message>`\n-# I will post it in this channel.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (text.length > 2000) {
-      const response = 'The message must be 2000 characters or fewer.';
+      const response = '✍️ Keep the message under 2000 characters.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     displayName = displayName?.trim();

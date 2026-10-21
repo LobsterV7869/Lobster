@@ -9,12 +9,12 @@ module.exports = {
   async run({ interaction, message, isSlash, args, client }) {
     const name = isSlash ? interaction.options.getString('name') : args[0];
     if (!name) {
-      const response = 'Usage: l emoji <name>';
+      const response = '🔍 Which emoji should I search for?\n`l emoji <name>`\n-# I will search this server\'s emojis.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const emoji = client.emojis.cache.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
 
-    if (!emoji) return isSlash ? interaction.reply('❌ No emoji matched that name.') : message.reply('❌ No emoji matched that name.');
+    if (!emoji) return isSlash ? interaction.reply('🔍 No emoji matched that name.') : message.reply('🔍 No emoji matched that name.');
 
     if (isSlash) await interaction.reply(`${emoji}`);
     else await message.reply(`${emoji}`);

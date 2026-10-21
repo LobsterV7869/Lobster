@@ -74,7 +74,7 @@ module.exports = {
       selectedCategoryChannel = categoryChannel;
       if (category && categoryEnabled !== null) updates[category] = categoryEnabled;
       else if (!category && (categoryEnabled !== null || categoryChannel || clearCategoryChannel)) {
-        const response = 'Choose a log category when changing its settings.';
+        const response = '📝 Choose a log category when changing its settings.';
         return interaction.reply({ content: response, ephemeral: true });
       }
       if (category && categoryChannel) channelUpdates[category] = categoryChannel.id;
@@ -107,7 +107,7 @@ module.exports = {
     const targetChannel = selectedChannel || guild.channels.cache.get(settings.auditLogChannel);
     for (const channel of new Set([selectedChannel, selectedCategoryChannel].filter(Boolean))) {
       if (!channel.isTextBased()) {
-        const response = 'Choose a text channel for event logs.';
+        const response = '📝 Choose a text channel for event logs.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (!channel.permissionsFor(guild.members.me)?.has([
@@ -121,7 +121,7 @@ module.exports = {
     }
     const hasDedicatedChannel = Object.values(settings.eventLogChannels).some(Boolean);
     if (loggingEnabled === true && !targetChannel && !hasDedicatedChannel) {
-      const response = 'Choose a log channel first.';
+      const response = '📝 Choose a log channel first.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

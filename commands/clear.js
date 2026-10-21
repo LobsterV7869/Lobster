@@ -12,9 +12,9 @@ module.exports = {
     const amount = isSlash ? interaction.options.getInteger('amount') : parseInt(args[0]);
 
     if (!amount || amount < 1 || amount > 100) {
-      const response = 'Usage: l clear <1-100>';
+      const response = '🧽 How many messages should I clear?\n`l clear <1-100>`\n-# Between 1 and 100 messages.';
       return isSlash
-        ? interaction.reply({ content: 'Usage: l clear <1-100>', ephemeral: true })
+        ? interaction.reply({ content: '🧽 How many messages should I clear?\n`l clear <1-100>`\n-# Between 1 and 100 messages.', ephemeral: true })
         : message.reply(response);
     }
 

@@ -12,7 +12,7 @@ module.exports = {
       ? interaction.options.getUser('member') || author
       : message.mentions.users.first() || (args[0] ? await guild.client.users.fetch(args[0]).catch(() => null) : author);
     if (!target) {
-      const response = 'Usage: l level [@user]';
+      const response = '📈 Whose level should I show?\n`l level [@user]`\n-# No mention? I will show yours.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const stats = db.getLevel(guild.id, target.id);

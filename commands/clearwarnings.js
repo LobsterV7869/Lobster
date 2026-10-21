@@ -18,7 +18,7 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Usage: l clearwarnings @user';
+      const response = '🧹 Whose slate should I wipe clean?\n`l clearwarnings @user`\n-# Clears every warning for that member.';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);

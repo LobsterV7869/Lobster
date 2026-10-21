@@ -90,7 +90,7 @@ module.exports = {
       }
     }
     if (targets.length !== 2) {
-      const content = 'Usage: l ship @member [@member2]';
+      const content = '💞 Who should I ship?\n`l ship @member [@member2]`\n-# Name two people, or just one for a random match.';
       return isSlash
         ? interaction.reply({ content, ephemeral: true })
         : message.reply(content);

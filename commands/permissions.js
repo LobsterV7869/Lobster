@@ -11,10 +11,10 @@ module.exports = {
     if (isSlash) user = interaction.options.getUser('target') || interaction.user;
     else user = message.mentions.users.first() || (args[0] ? await guild.client.users.fetch(args[0]).catch(() => null) : message.author);
 
-    if (!user) return isSlash ? interaction.reply('Usage: l permissions @user') : message.reply('Usage: l permissions @user');
+    if (!user) return isSlash ? interaction.reply('🔑 Whose permissions should I check?\n`l permissions @user`\n-# See exactly what they can and cannot do.') : message.reply('🔑 Whose permissions should I check?\n`l permissions @user`\n-# See exactly what they can and cannot do.');
     const member = guild.members.cache.get(user.id) || await guild.members.fetch(user.id).catch(() => null);
     if (!member) {
-      const response = 'That user is not a member of this server.';
+      const response = '🔍 That user is not a member of this server.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

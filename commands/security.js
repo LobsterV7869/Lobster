@@ -50,15 +50,15 @@ module.exports = {
     }
 
     if (minAge !== undefined && (!Number.isInteger(minAge) || minAge < 0 || minAge > 365)) {
-      const response = 'Minimum account age must be between 0 and 365 days.';
+      const response = '🛡️ Minimum account age must be between 0 and 365 days.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (actionLimit !== undefined && (!Number.isInteger(actionLimit) || actionLimit < 2 || actionLimit > 10)) {
-      const response = 'Action limit must be between 2 and 10.';
+      const response = '🛡️ Action limit must be between 2 and 10.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (windowSeconds !== undefined && (!Number.isInteger(windowSeconds) || windowSeconds < 5 || windowSeconds > 60)) {
-      const response = 'The action window must be between 5 and 60 seconds.';
+      const response = '🛡️ The action window must be between 5 and 60 seconds.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (exemptRole && (
@@ -66,7 +66,7 @@ module.exports = {
       || exemptRole.managed
       || (member.id !== guild.ownerId && exemptRole.comparePositionTo(member.roles.highest) >= 0)
     )) {
-      const response = 'Choose an unmanaged role below your highest role as the anti-nuke exemption.';
+      const response = '🛡️ Choose an unmanaged role below your highest role as the anti-nuke exemption.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (removeExemptRole && (
@@ -74,18 +74,18 @@ module.exports = {
       || removeExemptRole.managed
       || (member.id !== guild.ownerId && removeExemptRole.comparePositionTo(member.roles.highest) >= 0)
     )) {
-      const response = 'Choose an unmanaged role below your highest role.';
+      const response = '🛡️ Choose an unmanaged role below your highest role.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const needsKickPermission = minAge > 0
       || blockBots === true
       || antiNukeEnabled === true;
     if (needsKickPermission && !guild.members.me.permissions.has(PermissionFlagsBits.KickMembers)) {
-      const response = 'I need the Kick Members permission to enforce account checks and anti-nuke protection.';
+      const response = '🛡️ I need the Kick Members permission to enforce account checks and anti-nuke protection.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (antiNukeEnabled === true && !guild.members.me.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
-      const response = 'I need the View Audit Log permission to monitor anti-nuke events.';
+      const response = '🛡️ I need the View Audit Log permission to monitor anti-nuke events.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

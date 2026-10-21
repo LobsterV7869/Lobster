@@ -30,12 +30,12 @@ module.exports = {
       db.updateSetting(guild.id, 'eventLogsEnabled', false);
     }
     else if (!selectedChannel && state === true) {
-      const response = 'Choose a text channel to receive event logs.';
+      const response = '📝 Choose a text channel to receive event logs.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (state !== false && selectedChannel) {
       if (!selectedChannel.isTextBased()) {
-        const response = 'Choose a text channel to receive event logs.';
+        const response = '📝 Choose a text channel to receive event logs.';
         return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
       }
       if (!selectedChannel.permissionsFor(guild.members.me)

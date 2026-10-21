@@ -24,7 +24,7 @@ module.exports = {
     }
 
     if (!member) {
-      const response = 'Usage: l warn @user [reason]';
+      const response = '⚠️ Who deserves a warning?\n`l warn @user [reason]`\n-# Warnings stack, so you always keep score.';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);

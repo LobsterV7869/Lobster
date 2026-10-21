@@ -21,7 +21,7 @@ module.exports = {
     }
 
     if (!user || !Number.isInteger(id)) {
-      const response = 'Usage: l delwarn @user <id>';
+      const response = '🗑️ Which warning should I remove?\n`l delwarn @user <id>`\n-# Copy the ID straight from `l warnings @user`.';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);

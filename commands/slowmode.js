@@ -12,7 +12,7 @@ module.exports = {
     const seconds = isSlash ? interaction.options.getInteger('seconds') : parseInt(args[0]);
 
     if (!Number.isInteger(seconds) || seconds < 0 || seconds > 21600) {
-      const response = 'Slowmode must be between 0 and 21600 seconds.';
+      const response = '🐌 Slowmode must be between 0 and 21600 seconds (6 hours).';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

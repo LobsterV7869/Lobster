@@ -6,12 +6,12 @@ const { logModeration } = require('../utils/modlog');
 const MAX_BYTES = 512 * 1024;
 
 function friendlyError(error) {
-  if (error?.code === 30039) return 'This server has reached its maximum number of stickers.';
-  if (error?.code === 50035) return 'Discord rejected that sticker. Use a PNG, APNG or GIF at 320x320 (512x512 max) and a 2-30 character name.';
+  if (error?.code === 30039) return '📦 This server is full — you have hit the sticker limit.';
+  if (error?.code === 50035) return '🙃 Discord rejected that sticker. Use a PNG, APNG or GIF at 320x320 (512x512 max) with a 2-30 character name.';
   if (error?.status === 413 || /larger than|too large|File size/i.test(error?.message || '')) {
-    return 'That file is too large. Stickers must be 512 KB or smaller.';
+    return '📦 That file is too big. Stickers must be 512 KB or smaller.';
   }
-  return error?.rawError?.message || error?.message || 'Discord could not add that sticker.';
+  return error?.rawError?.message || error?.message || '🙃 Discord could not add that sticker — try a different image.';
 }
 
 module.exports = {
@@ -42,16 +42,16 @@ module.exports = {
     });
 
     const name = input.name || sanitizeName(nameOption);
-    const usage = 'Usage: l addsticker <name> <image>';
+    const usage = '🩹 Add a custom sticker:\n`l addsticker <name> <image>`\n-# Attach a PNG, APNG, or GIF up to 512 KB.';
     if (!name || !input.source) {
       return isSlash ? interaction.reply({ content: usage, ephemeral: true }) : message.reply(usage);
     }
     if (!/^[A-Za-z0-9_ ]{2,30}$/.test(name)) {
-      const response = 'The sticker name must be 2-30 characters.';
+      const response = '✍️ The sticker name must be 2-30 characters.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (input.size && input.size > MAX_BYTES) {
-      const response = 'That file is too large. Stickers must be 512 KB or smaller.';
+      const response = '📦 That file is too big. Stickers must be 512 KB or smaller.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

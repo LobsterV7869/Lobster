@@ -18,8 +18,8 @@ module.exports = {
     }
     if (newPrefix.length > 5 || /\s/.test(newPrefix)) {
       return isSlash
-        ? interaction.reply({ content: 'The prefix must be 1–5 characters with no spaces.', ephemeral: true })
-        : message.reply('The prefix must be 1–5 characters with no spaces.');
+        ? interaction.reply({ content: '⌨️ The prefix must be 1–5 characters with no spaces.', ephemeral: true })
+        : message.reply('⌨️ The prefix must be 1–5 characters with no spaces.');
     }
 
     db.updateSetting(guild.id, 'prefix', newPrefix);

@@ -20,7 +20,7 @@ module.exports = {
       role = message.mentions.roles.first() || guild.roles.cache.get(args[1]);
     }
 
-    if (!member || !role) return isSlash ? interaction.reply('Usage: l addrole @user @role') : message.reply('Usage: l addrole @user @role');
+    if (!member || !role) return isSlash ? interaction.reply('➕ Who gets the role?\n`l addrole @user @role`\n-# Mention the member, then the role.') : message.reply('➕ Who gets the role?\n`l addrole @user @role`\n-# Mention the member, then the role.');
     const targetError = roleHierarchyError(actor, role, guild);
     if (targetError) return isSlash ? interaction.reply({ content: targetError, ephemeral: true }) : message.reply(targetError);
 

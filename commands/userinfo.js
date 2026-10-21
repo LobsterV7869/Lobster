@@ -26,7 +26,7 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Usage: l userinfo [@user]';
+      const response = '🔍 Who do you want to look up?\n`l userinfo [@user]`\n-# No mention? I will show yours.';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);
