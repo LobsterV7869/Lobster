@@ -48,7 +48,7 @@ module.exports = {
     }
 
     if (!description?.trim()) {
-      const response = 'Usage: `p embed --title "Server update" --message "Your announcement goes here."`.';
+      const response = 'Usage: l embed --title <title> --message <text>';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!/^#[\da-f]{6}$/i.test(color)) {

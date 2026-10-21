@@ -42,7 +42,7 @@ module.exports = {
     });
 
     const name = input.name || sanitizeName(nameOption);
-    const usage = 'Add a sticker name and an image. Example: `addsticker :laughingdog:` with a PNG attached, or reply to a sticker with `addsticker laughingdog`.';
+    const usage = 'Usage: l addsticker <name> <image>';
     if (!name || !input.source) {
       return isSlash ? interaction.reply({ content: usage, ephemeral: true }) : message.reply(usage);
     }

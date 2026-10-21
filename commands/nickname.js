@@ -20,7 +20,7 @@ module.exports = {
       name = args.slice(1).join(' ');
     }
 
-    if (!member) return isSlash ? interaction.reply('❌ I could not find that member.') : message.reply('❌ I could not find that member.');
+    if (!member) return isSlash ? interaction.reply('Usage: l nickname @user [name]') : message.reply('Usage: l nickname @user [name]');
     if (name?.length > 32) {
       const response = 'Nicknames must be 32 characters or fewer.';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);

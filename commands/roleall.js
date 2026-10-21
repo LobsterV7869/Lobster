@@ -32,7 +32,7 @@ module.exports = {
     }
 
     if (!role) {
-      const text = '❌ Please provide a valid role.';
+      const text = 'Usage: l roleall @role';
       return isSlash ? interaction.reply({ content: text, ephemeral: true }) : message.reply(text);
     }
 

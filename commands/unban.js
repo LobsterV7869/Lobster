@@ -11,9 +11,9 @@ module.exports = {
   async run({ interaction, message, isSlash, args, guild }) {
     const id = isSlash ? interaction.options.getString('id') : args[0];
 
-    if (!id) return isSlash ? interaction.reply('❌ Please provide a user ID to unban.') : message.reply('❌ Please provide a user ID to unban.');
+    if (!id) return isSlash ? interaction.reply('Usage: l unban <user id> [reason]') : message.reply('Usage: l unban <user id> [reason]');
     if (!/^\d{17,20}$/.test(id)) {
-      const response = 'Provide a valid Discord user ID.';
+      const response = 'Usage: l unban <user id> [reason]';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

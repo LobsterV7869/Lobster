@@ -12,7 +12,7 @@ module.exports = {
       ? interaction.options.getUser('member') || author
       : message.mentions.users.first() || (args[0] ? await guild.client.users.fetch(args[0]).catch(() => null) : author);
     if (!target) {
-      const response = 'I could not find that user.';
+      const response = 'Usage: l level [@user]';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const stats = db.getLevel(guild.id, target.id);

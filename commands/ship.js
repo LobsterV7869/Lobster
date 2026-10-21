@@ -90,7 +90,7 @@ module.exports = {
       }
     }
     if (targets.length !== 2) {
-      const content = 'Usage: `p ship @member` or `p ship @member1 @member2`.';
+      const content = 'Usage: l ship @member [@member2]';
       return isSlash
         ? interaction.reply({ content, ephemeral: true })
         : message.reply(content);

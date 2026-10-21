@@ -24,7 +24,7 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Please mention a user to softban.';
+      const response = 'Usage: l softban @user [reason]';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (user.id === moderator.id || user.id === guild.ownerId) {

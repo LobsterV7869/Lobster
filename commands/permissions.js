@@ -11,7 +11,7 @@ module.exports = {
     if (isSlash) user = interaction.options.getUser('target') || interaction.user;
     else user = message.mentions.users.first() || (args[0] ? await guild.client.users.fetch(args[0]).catch(() => null) : message.author);
 
-    if (!user) return isSlash ? interaction.reply('❌ I could not find that user.') : message.reply('❌ I could not find that user.');
+    if (!user) return isSlash ? interaction.reply('Usage: l permissions @user') : message.reply('Usage: l permissions @user');
     const member = guild.members.cache.get(user.id) || await guild.members.fetch(user.id).catch(() => null);
     if (!member) {
       const response = 'That user is not a member of this server.';

@@ -52,7 +52,7 @@ module.exports = {
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (!messageId || !/^\d{17,20}$/.test(messageId)) {
-      const response = 'Provide the 17–20 digit ID of the message.';
+      const response = 'Usage: l reactionrole add <message id> <emoji> <@role>';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

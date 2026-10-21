@@ -49,7 +49,7 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'I could not find that user.';
+      const response = 'Usage: l spotify [@user]';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

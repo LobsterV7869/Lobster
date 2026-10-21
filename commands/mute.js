@@ -24,9 +24,9 @@ module.exports = {
     }
 
     if (!member || isNaN(duration)) {
-      const response = 'Please mention a user and enter a duration to mute.';
+      const response = 'Usage: l mute @user <duration in minutes> [reason]';
       return isSlash
-        ? interaction.reply({ content: 'Select a member and enter a duration.', ephemeral: true })
+        ? interaction.reply({ content: 'Usage: l mute @user <duration in minutes> [reason]', ephemeral: true })
         : message.reply(response);
     }
     if (reason.length > 512) {

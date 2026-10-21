@@ -44,7 +44,7 @@ module.exports = {
     }
 
     if (!text) {
-      const response = 'Provide the message to send.';
+      const response = 'Usage: l speak <message>';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (text.length > 2000) {

@@ -20,7 +20,7 @@ module.exports = {
       role = message.mentions.roles.first() || guild.roles.cache.get(args[1]);
     }
 
-    if (!member || !role) return isSlash ? interaction.reply('❌ I could not find that member or role.') : message.reply('❌ I could not find that member or role.');
+    if (!member || !role) return isSlash ? interaction.reply('Usage: l removerole @user @role') : message.reply('Usage: l removerole @user @role');
     const targetError = roleHierarchyError(actor, role, guild);
     if (targetError) return isSlash ? interaction.reply({ content: targetError, ephemeral: true }) : message.reply(targetError);
 

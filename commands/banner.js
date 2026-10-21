@@ -12,7 +12,7 @@ module.exports = {
     if (isSlash) user = interaction.options.getUser('target') || interaction.user;
     else user = message.mentions.users.first() || (args[0] ? await client.users.fetch(args[0]).catch(() => null) : message.author);
 
-    if (!user) return isSlash ? interaction.reply('❌ I could not find that user.') : message.reply('❌ I could not find that user.');
+    if (!user) return isSlash ? interaction.reply('Usage: l banner [@user]') : message.reply('Usage: l banner [@user]');
 
     const fullUser = await client.users.fetch(user.id, { force: true });
     if (!fullUser.banner) {

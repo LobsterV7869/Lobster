@@ -34,7 +34,7 @@ module.exports = {
       message
     });
 
-    const usage = 'Add an emoji name and an image. Example: `addemoji :lovemc:` with an image attached, or `addemoji lovemc <:lovemc:123456789012345678>`.';
+    const usage = 'Usage: l addemoji <name> <image/emoji>';
     if (!input.name || !input.source) {
       return isSlash ? interaction.reply({ content: usage, ephemeral: true }) : message.reply(usage);
     }

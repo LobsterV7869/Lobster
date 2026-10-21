@@ -27,7 +27,7 @@ module.exports = {
     }
 
     if (!amount || amount < 1 || amount > 100) {
-      const response = 'Enter a number between 1 and 100.';
+      const response = 'Usage: l purge <amount> [@user] [bots|text]';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
 

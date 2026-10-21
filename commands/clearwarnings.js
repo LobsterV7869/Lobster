@@ -18,7 +18,7 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Please mention a member whose warnings should be cleared.';
+      const response = 'Usage: l clearwarnings @user';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);

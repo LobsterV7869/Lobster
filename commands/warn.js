@@ -24,7 +24,7 @@ module.exports = {
     }
 
     if (!member) {
-      const response = 'Please mention a member to warn.';
+      const response = 'Usage: l warn @user [reason]';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);

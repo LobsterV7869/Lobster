@@ -27,7 +27,7 @@ module.exports = {
         || guild.roles.cache.get(args.find(argument => /^\d{17,20}$/.test(argument))?.replace(/[<@&>]/g, ''))
         || guild.roles.cache.find(item => item.name.toLowerCase() === args.join(' ').toLowerCase());
     if (!role) {
-      const response = 'Usage: `p roleinfo @Moderator`.';
+      const response = 'Usage: l roleinfo @role';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);

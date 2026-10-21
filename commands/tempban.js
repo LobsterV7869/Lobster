@@ -29,7 +29,7 @@ module.exports = {
     }
 
     if (!user || !durationInput) {
-      const response = 'Usage: tempban <@user> <duration> [reason]';
+      const response = 'Usage: l tempban @user <duration> [reason]';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     if (user.id === moderator.id || user.id === guild.ownerId) {

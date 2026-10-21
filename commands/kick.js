@@ -21,7 +21,7 @@ module.exports = {
     }
 
     if (!member) {
-      const response = 'Please mention a user to kick.';
+      const response = 'Usage: l kick @user [reason]';
       return isSlash
         ? interaction.reply({ content: 'Member not found.', ephemeral: true })
         : message.reply(response);

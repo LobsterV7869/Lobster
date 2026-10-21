@@ -21,9 +21,9 @@ module.exports = {
     }
 
     if (!user) {
-      const response = 'Please mention a user to ban.';
+      const response = 'Usage: l ban @user [reason]';
       return isSlash
-        ? interaction.reply({ content: 'Please select a user to ban.', ephemeral: true })
+        ? interaction.reply({ content: 'Usage: l ban @user [reason]', ephemeral: true })
         : message.reply(response);
     }
     if (reason.length > 512) {

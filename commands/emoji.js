@@ -9,7 +9,7 @@ module.exports = {
   async run({ interaction, message, isSlash, args, client }) {
     const name = isSlash ? interaction.options.getString('name') : args[0];
     if (!name) {
-      const response = 'Provide part or all of an emoji name to search for.';
+      const response = 'Usage: l emoji <name>';
       return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
     }
     const emoji = client.emojis.cache.find(e => e.name.toLowerCase().includes(name.toLowerCase()));

@@ -60,7 +60,7 @@ module.exports = {
 
     if (!prize || prize.length > 256 || !Number.isInteger(duration) || duration < 1 || duration > 10080
       || !Number.isInteger(winners) || winners < 1 || winners > 20) {
-      const response = 'Usage: `p giveaway 10m salam` or `p giveaway 10m 2 Nitro`. Durations accept `m`, `h`, or `d`; winners default to one.';
+      const response = 'Usage: l giveaway <duration> <prize>';
       return isSlash
         ? interaction.reply({ content: response, ephemeral: true })
         : message.reply(response);
