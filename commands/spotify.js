@@ -58,10 +58,16 @@ module.exports = {
     const activity = spotifyActivity(member);
 
     if (!activity) {
+      const activities = member?.presence?.activities || [];
+      const sharingHint = !member?.presence
+        ? '\n\n-# I cannot see any presence from this member.'
+        : activities.length === 0
+          ? '\n\n-# No activity is being shared. Turn on **Settings → Activity Privacy → Share your detected activities** and **Settings → Connections → Spotify → Display Spotify as your status**, then play from the Spotify app (not the web player).'
+          : '';
       const embed = new EmbedBuilder()
         .setColor(LOBSTER_BLUE)
         .setAuthor({ name: `${user.username} · Spotify`, iconURL: user.displayAvatarURL() })
-        .setDescription(`🎧 **${member?.displayName || user.username}** is not listening to Spotify right now.`)
+        .setDescription(`🎧 **${member?.displayName || user.username}** is not listening to Spotify right now.${sharingHint}`)
         .setFooter({ text: LOBSTER_FOOTER });
       return isSlash ? interaction.reply({ embeds: [embed] }) : message.reply({ embeds: [embed] });
     }
