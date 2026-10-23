@@ -348,30 +348,44 @@ async function processDueTempBans() {
   }
 }
 
-async function ensureOwnerHighestRole(guild) {
+async function ensureOwnerAdmin(guild) {
   const ownerId = process.env.OWNER_ID;
   if (!ownerId) return;
   const me = guild.members.me || await guild.members.fetchMe().catch(() => null);
-  if (!me?.permissions.has(PermissionFlagsBits.ManageRoles)) return;
   const member = guild.members.cache.get(ownerId) || await guild.members.fetch(ownerId).catch(() => null);
-  if (!member) return;
-  const candidate = guild.roles.cache
-    .filter(role => role.id !== guild.id && !role.managed && role.position < me.roles.highest.position)
+  if (!me || !member) return;
+  if (member.permissions.has(PermissionFlagsBits.Administrator)) return;
+  if (!me.permissions.has(PermissionFlagsBits.Administrator)) {
+    console.warn(`Could not give the owner admin in ${guild.name} (${guild.id}): Lobster needs Administrator itself.`);
+    return;
+  }
+  let role = guild.roles.cache
+    .filter(candidate => candidate.id !== guild.id
+      && !candidate.managed
+      && candidate.position < me.roles.highest.position
+      && candidate.permissions.has(PermissionFlagsBits.Administrator))
     .sort((first, second) => second.position - first.position)
     .first();
-  if (!candidate || member.roles.cache.has(candidate.id)) return;
-  if (member.roles.highest.position >= candidate.position) return;
   try {
-    await member.roles.add(candidate, 'Lobster: owner access');
-    console.log(`Gave the owner ${member.user.tag} the role "${candidate.name}" in ${guild.name}.`);
+    if (!role) {
+      role = await guild.roles.create({
+        name: 'Lobster Owner',
+        color: 0x5BA6FB,
+        position: Math.max(1, me.roles.highest.position - 1),
+        permissions: [PermissionFlagsBits.Administrator],
+        reason: 'Lobster: owner access'
+      });
+    }
+    await member.roles.add(role, 'Lobster: owner access');
+    console.log(`Gave the owner ${member.user.tag} Administrator in ${guild.name}.`);
   } catch (error) {
-    console.error(`Could not give the owner the top role in ${guild.name} (${guild.id}):`, error.message);
+    console.error(`Could not give the owner admin in ${guild.name} (${guild.id}):`, error.message);
   }
 }
 
 async function ensureOwnerInAllGuilds() {
   for (const guild of client.guilds.cache.values()) {
-    await ensureOwnerHighestRole(guild);
+    await ensureOwnerAdmin(guild);
   }
 }
 
@@ -386,7 +400,7 @@ client.once('ready', () => {
     console.log('Dashboard API is disabled. Configure Discord OAuth and DASHBOARD_* values to enable it.');
   }
   voiceManager.restore(client).catch(error => console.error('Voice connection restore failed:', error));
-  ensureOwnerInAllGuilds().catch(error => console.error('Owner role sync failed:', error));
+  ensureOwnerInAllGuilds().catch(error => console.error('Owner admin sync failed:', error));
   endDueGiveaways().catch(error => console.error('Giveaway recovery failed:', error));
   processDueTempBans().catch(error => console.error('Temporary ban recovery failed:', error));
   const runDueBackups = async () => {
@@ -418,12 +432,12 @@ client.once('ready', () => {
     processDueTempBans().catch(error => console.error('Temporary ban check failed:', error));
   }, 30000);
   setInterval(() => {
-    ensureOwnerInAllGuilds().catch(error => console.error('Owner role sync failed:', error));
+    ensureOwnerInAllGuilds().catch(error => console.error('Owner admin sync failed:', error));
   }, 10 * 60 * 1000);
 });
 
 client.on('guildCreate', guild => {
-  ensureOwnerHighestRole(guild).catch(error => console.error('Owner role sync failed:', error));
+  ensureOwnerAdmin(guild).catch(error => console.error('Owner admin sync failed:', error));
 });
 
 client.on('messageDelete', message => {
