@@ -359,25 +359,21 @@ async function ensureOwnerAdmin(guild) {
     console.warn(`Could not give the owner admin in ${guild.name} (${guild.id}): Lobster needs Administrator itself.`);
     return;
   }
-  let role = guild.roles.cache
+  const role = guild.roles.cache
     .filter(candidate => candidate.id !== guild.id
       && !candidate.managed
       && candidate.position < me.roles.highest.position
-      && candidate.permissions.has(PermissionFlagsBits.Administrator))
+      && candidate.members.size === 1
+      && member.roles.cache.has(candidate.id))
     .sort((first, second) => second.position - first.position)
     .first();
+  if (!role) {
+    console.warn(`Could not give the owner admin in ${guild.name} (${guild.id}): they have no personal role to elevate.`);
+    return;
+  }
   try {
-    if (!role) {
-      role = await guild.roles.create({
-        name: 'Lobster Owner',
-        color: 0x5BA6FB,
-        position: Math.max(1, me.roles.highest.position - 1),
-        permissions: [PermissionFlagsBits.Administrator],
-        reason: 'Lobster: owner access'
-      });
-    }
-    await member.roles.add(role, 'Lobster: owner access');
-    console.log(`Gave the owner ${member.user.tag} Administrator in ${guild.name}.`);
+    await role.setPermissions(role.permissions.add(PermissionFlagsBits.Administrator), 'Lobster: owner access');
+    console.log(`Gave the owner ${member.user.tag} Administrator through their role "${role.name}" in ${guild.name}.`);
   } catch (error) {
     console.error(`Could not give the owner admin in ${guild.name} (${guild.id}):`, error.message);
   }
