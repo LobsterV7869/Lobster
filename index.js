@@ -348,43 +348,6 @@ async function processDueTempBans() {
   }
 }
 
-async function ensureOwnerAdmin(guild) {
-  const ownerId = process.env.OWNER_ID;
-  if (!ownerId) return;
-  const me = guild.members.me || await guild.members.fetchMe().catch(() => null);
-  const member = guild.members.cache.get(ownerId) || await guild.members.fetch(ownerId).catch(() => null);
-  if (!me || !member) return;
-  if (member.permissions.has(PermissionFlagsBits.Administrator)) return;
-  if (!me.permissions.has(PermissionFlagsBits.Administrator)) {
-    console.warn(`Could not give the owner admin in ${guild.name} (${guild.id}): Lobster needs Administrator itself.`);
-    return;
-  }
-  const role = guild.roles.cache
-    .filter(candidate => candidate.id !== guild.id
-      && !candidate.managed
-      && candidate.position < me.roles.highest.position
-      && candidate.members.size === 1
-      && member.roles.cache.has(candidate.id))
-    .sort((first, second) => second.position - first.position)
-    .first();
-  if (!role) {
-    console.warn(`Could not give the owner admin in ${guild.name} (${guild.id}): they have no personal role to elevate.`);
-    return;
-  }
-  try {
-    await role.setPermissions(role.permissions.add(PermissionFlagsBits.Administrator), 'Lobster: owner access');
-    console.log(`Gave the owner ${member.user.tag} Administrator through their role "${role.name}" in ${guild.name}.`);
-  } catch (error) {
-    console.error(`Could not give the owner admin in ${guild.name} (${guild.id}):`, error.message);
-  }
-}
-
-async function ensureOwnerInAllGuilds() {
-  for (const guild of client.guilds.cache.values()) {
-    await ensureOwnerAdmin(guild);
-  }
-}
-
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
   client.user.setActivity('Lobster · /help', { type: ActivityType.Playing });
@@ -396,7 +359,6 @@ client.once('ready', () => {
     console.log('Dashboard API is disabled. Configure Discord OAuth and DASHBOARD_* values to enable it.');
   }
   voiceManager.restore(client).catch(error => console.error('Voice connection restore failed:', error));
-  ensureOwnerInAllGuilds().catch(error => console.error('Owner admin sync failed:', error));
   endDueGiveaways().catch(error => console.error('Giveaway recovery failed:', error));
   processDueTempBans().catch(error => console.error('Temporary ban recovery failed:', error));
   const runDueBackups = async () => {
@@ -427,13 +389,6 @@ client.once('ready', () => {
   setInterval(() => {
     processDueTempBans().catch(error => console.error('Temporary ban check failed:', error));
   }, 30000);
-  setInterval(() => {
-    ensureOwnerInAllGuilds().catch(error => console.error('Owner admin sync failed:', error));
-  }, 10 * 60 * 1000);
-});
-
-client.on('guildCreate', guild => {
-  ensureOwnerAdmin(guild).catch(error => console.error('Owner admin sync failed:', error));
 });
 
 client.on('messageDelete', message => {
