@@ -8,7 +8,7 @@ A Discord.js v14 bot for server setup, moderation, welcome cards, private ticket
 2. Run `npm install`.
 3. Copy `.env.example` to `.env` and fill in `TOKEN`, `CLIENT_ID`, and `OWNER_ID`.
 4. In the Discord Developer Portal, enable **Server Members Intent** and **Message Content Intent** for the bot.
-5. Invite the bot with the `bot` and `applications.commands` scopes. Grant the permissions it needs, including Manage Channels, Manage Roles, Manage Messages, Moderate Members, Ban Members, Kick Members, Send Messages, Embed Links, Read Message History, and Connect.
+5. Invite the bot with the `bot` and `applications.commands` scopes. Grant the permissions it needs, including Manage Channels, Manage Roles, Manage Messages, Moderate Members, Ban Members, Kick Members, Send Messages, Embed Links, Read Message History, View Audit Log, and Connect.
 6. Run `node deploy-commands.js` once, then start the bot with `node index.js`.
 
 Use `npm run deploy` and `npm start` for the same commands. Guild settings, welcome-card design, ticket-panel configuration, levels, giveaways, and AFK statuses are stored in `data/database.json`.
@@ -46,7 +46,7 @@ Only the newest successful compressed JSON backup is retained on the bot host. `
 - **Welcome and farewell:** `/welcomer` configures separate join and departure cards, with previewable welcome templates. Supports `{user}`, `{username}`, `{server}`, `{membercount}`, `{created}`, `{joined}`, and `{id}`. Bot-generated embeds consistently use Lobster orange.
 - **Automatic moderation:** `/automod enabled:true` turns on the configured filters. Each filter and the blocked-word list can be changed individually. The bot does not silently enable profanity filters with a guessed language-specific word list.
 - **Security:** `/security` configures minimum account age, bot blocking, and optional anti-nuke action limits. Anti-nuke is off by default and kicks the responsible non-exempt member when its explicitly configured threshold is reached. Give Lobster **Kick Members** and **View Audit Log** permissions before enabling it.
-- **Event logs:** `/log channel:#logs` (or `p log #logs`) enables categorized, privacy-conscious server logs. Set an individual destination with `/log category:moderation category_channel:#mod-log` or `p log moderation #mod-log`; disable a category with `/log category:messages category_enabled:false` or `p log messages off`. Use `p log` to see each category and its channel. Event logs do not copy message contents; message backups are a separate opt-in. `/auditlog` remains available as a simple single-channel setting.
+- **Event logs:** `/logs` (or `p logs` / `p log`) opens a private configuration panel. Choose **Configure Logs** to enable individual types, choose a channel per type, toggle bot ignores, edit ignored channels/roles/members, or use **Set up log channels** to create a private category with one channel per enabled type. Moderation, protection, roles, tickets, messages, levels, names, voice, channels, invites, and join/leave events are supported; reactions are off by default. The panel warns when a configured channel was deleted and explains what still needs attention. Message edit and delete entries include content previews when Lobster can read message content; disable **Messages** if that retention is unwanted. Give Lobster **Manage Channels** to create log channels and **View Audit Log** to show who performed moderation and server changes. `/auditlog` remains available as a simple single-channel status check.
 - **Auto-replies:** `/autoresponse add` saves a case-insensitive phrase and response; `/autoresponse remove` and `/autoresponse list` manage the server's rules.
 - **Reaction roles:** Post an announcement or a custom embed, then use `/reactionrole add` with its channel, message ID, emoji, and role. Members gain or lose that role by adding or removing the reaction.
 - **Embeds:** `/embed` sends a custom announcement embed. Use `/help` for the current prefix equivalents and arguments.
@@ -58,9 +58,8 @@ Prefix examples for configuration:
 ```text
 l automod on --spam-limit 6 --spam-window 8 --words "scam,phishing"
 l security --min-age 7 --block-bots on --anti-nuke on --limit 4 --window 10
-p log #logs
-p log moderation #mod-log
-p log messages #message-log
+p logs
+p log
 l autoresponse add "server ip" "Join with play.example.net"
 l welcomer #welcome --farewell-channel #welcome --farewell-enabled on --farewell-message "{username} has left {server}."
 ```

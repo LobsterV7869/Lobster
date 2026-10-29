@@ -1,0 +1,4 @@
+Logged in as Lobster#3436
+(node:566440) DeprecationWarning: The ready event has been renamed to clientReady to distinguish it from the gateway READY event and will only emit under that name in v15. Please use clientReady instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Lobster dashboard API listening on port 3000

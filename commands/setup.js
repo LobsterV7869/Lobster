@@ -494,7 +494,7 @@ module.exports = {
         },
         {
           name: '🚀 Next steps',
-          value: '`/welcomer` · design the welcome card\n`/ticket-panel` · customise support\n`/log` · adjust what gets logged\n`/help` · browse every command'
+          value: '`/welcomer` · design the welcome card\n`/ticket-panel` · customise support\n`/logs` · adjust what gets logged\n`/help` · browse every command'
         },
         {
           name: '🎭 Roles',

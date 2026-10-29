@@ -11,6 +11,15 @@ const {
 } = require('discord.js');
 const db = require('../utils/database');
 const voiceManager = require('./voice-manager');
+const {
+  getLogConfig,
+  normalizeConfig,
+  saveLogConfig,
+  cleanId,
+  cleanIds
+} = require('../utils/logging/config');
+const { LOG_TYPES, TYPE_MAP } = require('../utils/logging/categories');
+const { setupLogChannels, removeLogs } = require('../utils/logging/setup');
 
 const DISCORD_API = 'https://discord.com/api/v10';
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -236,6 +245,7 @@ function createDashboardServer(client) {
       eventLogsEnabled: Boolean(settings.eventLogsEnabled),
       eventLogTypes: settings.eventLogTypes,
       eventLogChannels: settings.eventLogChannels,
+      logs: getLogConfig(guild.id),
       minAccountAgeDays: settings.minAccountAgeDays,
       blockBots: Boolean(settings.blockBots),
       joinRaidProtection: settings.joinRaidProtection,
@@ -245,6 +255,9 @@ function createDashboardServer(client) {
       counting: Boolean(settings.counting),
       countingChannel: settings.countingChannel,
       lastCount: settings.lastCount,
+      boosterEnabled: Boolean(settings.boosterEnabled),
+      boosterChannel: settings.boosterChannel,
+      boosterMessage: settings.boosterMessage,
       ticketChannel: settings.ticketChannel,
       ticketCategory: settings.ticketCategory,
       ticketAdminRole: settings.ticketAdminRole,
@@ -311,6 +324,68 @@ function createDashboardServer(client) {
     return value.trim();
   }
 
+  function validateLogChannel(guild, value) {
+    const channelId = cleanId(value);
+    if (!channelId) return null;
+    const channel = guild.channels.cache.get(channelId);
+    if (!channel || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type)) {
+      throw new Error('Each log channel must be a text or announcement channel in this server.');
+    }
+    return channelId;
+  }
+
+  function validateLogIds(guild, values, kind) {
+    const raw = Array.isArray(values)
+      ? [...new Set(values.map(value => String(value).trim()).filter(Boolean))]
+      : [];
+    const ids = cleanIds(raw);
+    if (ids.length !== raw.length) throw new Error(`Every ignored ${kind} must be a valid ID.`);
+    if (ids.length > 100) throw new Error('Keep each ignore list to 100 IDs or fewer.');
+    if (kind === 'channel' && ids.some(id => !guild.channels.cache.has(id))) {
+      throw new Error('One or more ignored channels were not found in this server.');
+    }
+    if (kind === 'role' && ids.some(id => !guild.roles.cache.has(id))) {
+      throw new Error('One or more ignored roles were not found in this server.');
+    }
+    return ids;
+  }
+
+  function updateLogConfig(guild, body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid logging payload.');
+    const config = normalizeConfig(getLogConfig(guild.id));
+    if (Object.hasOwn(body, 'enabled')) {
+      if (typeof body.enabled !== 'boolean') throw new Error('enabled must be true or false.');
+      config.enabled = body.enabled;
+    }
+    if (Object.hasOwn(body, 'fallbackChannelId')) {
+      config.fallbackChannelId = validateLogChannel(guild, body.fallbackChannelId);
+    }
+    const types = body.types;
+    if (types !== undefined && (!types || typeof types !== 'object' || Array.isArray(types))) {
+      throw new Error('types must be an object keyed by log type.');
+    }
+    for (const [key, patch] of Object.entries(types || {})) {
+      if (!TYPE_MAP[key]) continue;
+      if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error(`Invalid configuration for ${key}.`);
+      const current = config.types[key];
+      const next = { ...current, lastUpdated: Date.now(), lastError: null };
+      if (Object.hasOwn(patch, 'enabled')) {
+        if (typeof patch.enabled !== 'boolean') throw new Error(`${key}.enabled must be true or false.`);
+        next.enabled = patch.enabled;
+      }
+      if (Object.hasOwn(patch, 'channelId')) next.channelId = validateLogChannel(guild, patch.channelId);
+      if (Object.hasOwn(patch, 'ignoreBots')) {
+        if (typeof patch.ignoreBots !== 'boolean') throw new Error(`${key}.ignoreBots must be true or false.`);
+        next.ignoreBots = patch.ignoreBots;
+      }
+      if (Object.hasOwn(patch, 'ignoredChannels')) next.ignoredChannels = validateLogIds(guild, patch.ignoredChannels, 'channel');
+      if (Object.hasOwn(patch, 'ignoredRoles')) next.ignoredRoles = validateLogIds(guild, patch.ignoredRoles, 'role');
+      if (Object.hasOwn(patch, 'ignoredUsers')) next.ignoredUsers = validateLogIds(guild, patch.ignoredUsers, 'user');
+      config.types[key] = next;
+    }
+    return saveLogConfig(guild.id, config);
+  }
+
   function applySettings(guild, body) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid settings payload.');
     const settings = db.getSettings(guild.id);
@@ -368,7 +443,8 @@ function createDashboardServer(client) {
     for (const [input, key, limit] of [
       ['welcomeTitle', 'welcomeTitle', 256],
       ['welcomeMessage', 'welcomeMessage', 2000],
-      ['farewellMessage', 'farewellMessage', 2000]
+      ['farewellMessage', 'farewellMessage', 2000],
+      ['boosterMessage', 'boosterMessage', 2000]
     ]) {
       if (Object.hasOwn(body, input)) updates[key] = validateText(body[input], input, limit);
     }
@@ -387,12 +463,13 @@ function createDashboardServer(client) {
       }
       updates.welcomeColor = body.welcomeColor;
     }
-    for (const key of ['welcomeEnabled', 'farewellEnabled', 'automod', 'eventLogsEnabled', 'levelsEnabled', 'counting', 'blockBots', 'verificationEnabled']) {
+    for (const key of ['welcomeEnabled', 'farewellEnabled', 'automod', 'eventLogsEnabled', 'levelsEnabled', 'counting', 'blockBots', 'verificationEnabled', 'boosterEnabled']) {
       if (Object.hasOwn(body, key)) {
         if (typeof body[key] !== 'boolean') throw new Error(`${key} must be enabled or disabled.`);
         updates[{
           welcomeEnabled: 'welcomer',
           farewellEnabled: 'farewellEnabled',
+          boosterEnabled: 'boosterEnabled',
           automod: 'automod',
           eventLogsEnabled: 'eventLogsEnabled',
           levelsEnabled: 'levelsEnabled',
@@ -723,7 +800,8 @@ function createDashboardServer(client) {
           botPermissions: guild.members.me?.permissions.bitfield.toString() || '0'
         },
         voice: voiceManager.status(guild),
-        autoReplies: db.getAutoReplies(guild.id)
+        autoReplies: db.getAutoReplies(guild.id),
+        logTypes: LOG_TYPES
       });
     } catch (error) {
       next(error);
@@ -738,6 +816,49 @@ function createDashboardServer(client) {
         await managedGuild(req, req.params.guildId, 'ManageRoles');
       }
       res.json({ settings: applySettings(guild, req.body) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/guilds/:guildId/logs', requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      res.json({ logs: getLogConfig(guild.id), logTypes: LOG_TYPES });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch('/api/guilds/:guildId/logs', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      res.json({ logs: updateLogConfig(guild, req.body) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/logs/setup', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      const result = await setupLogChannels(guild);
+      res.json({
+        logs: getLogConfig(guild.id),
+        created: result.created.map(channel => ({ id: channel.id, name: channel.name })),
+        reused: result.reused.map(channel => ({ id: channel.id, name: channel.name })),
+        skipped: result.skipped
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/guilds/:guildId/logs/remove', requireOrigin, requireSession, async (req, res, next) => {
+    try {
+      const guild = await managedGuild(req, req.params.guildId);
+      const result = await removeLogs(guild, { deleteChannels: Boolean(req.body?.deleteChannels) });
+      res.json({ logs: getLogConfig(guild.id), deleted: result.deleted, failed: result.failed });
     } catch (error) {
       next(error);
     }

@@ -7,6 +7,8 @@ const {
   ActivityType,
   ActionRowBuilder,
   AuditLogEvent,
+  AutoModerationActionType,
+  AutoModerationRuleTriggerType,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
@@ -25,6 +27,9 @@ const { createDashboardServer } = require('./dashboard/server');
 const voiceManager = require('./dashboard/voice-manager');
 const { executeCommand } = require('./utils/handler');
 const { stylePayload, styledContext } = require('./utils/command-style');
+const { logEvent, handleChannelRemoval } = require('./utils/logging/logger');
+const { getLogConfig } = require('./utils/logging/config');
+const { handleLogInteraction } = require('./utils/logging/interactions');
 const backups = require('./utils/backups');
 const { welcomeEmbed } = require('./utils/welcome');
 const { farewellEmbed } = require('./utils/farewell');
@@ -178,47 +183,6 @@ function recordWindow(map, key, timestamp, duration) {
   return timestamps.length;
 }
 
-const LOG_META = {
-  general: { emoji: '📋', label: 'General', color: 0x5BA6FB },
-  moderation: { emoji: '🔨', label: 'Moderation', color: 0xed4245 },
-  members: { emoji: '👥', label: 'Members', color: 0x5BA6FB },
-  messages: { emoji: '💬', label: 'Messages', color: 0x5BA6FB },
-  channels: { emoji: '📚', label: 'Channels', color: 0x5BA6FB },
-  roles: { emoji: '🎭', label: 'Roles', color: 0xeb459e },
-  voice: { emoji: '🔊', label: 'Voice', color: 0x57f287 },
-  emojis: { emoji: '😄', label: 'Emojis', color: 0xfee75c },
-  levels: { emoji: '📈', label: 'Levels', color: 0x5BA6FB },
-  security: { emoji: '🚨', label: 'Security', color: 0xed4245 }
-};
-
-async function logGuildEvent(guild, title, description, color, category = 'general') {
-  const settings = db.getSettings(guild.id);
-  if (!settings.eventLogsEnabled || settings.eventLogTypes[category] === false) return;
-  const channelId = settings.eventLogChannels[category] || settings.auditLogChannel;
-  if (!channelId) return;
-  const channel = guild.channels.cache.get(channelId);
-  if (!channel?.isTextBased()) return;
-  const meta = LOG_META[category] || LOG_META.general;
-  const embed = new EmbedBuilder()
-    .setColor(meta.color)
-    .setAuthor({
-      name: `${meta.emoji} ${meta.label} · ${guild.name}`,
-      iconURL: guild.iconURL() || undefined
-    })
-    .setTitle(title)
-    .setDescription(description)
-    .setFooter({ text: '🦞 Lobster' })
-    .setTimestamp();
-  try {
-    await channel.send({
-      ...styleCommandPayload('log', guild, { embeds: [embed] }),
-      allowedMentions: { parse: [] }
-    });
-  } catch (error) {
-    console.error(`Could not write an event log for guild ${guild.id}:`, error);
-  }
-}
-
 async function checkAutomod(message, settings) {
   if (!settings.automod) return false;
   const rules = settings.automodRules;
@@ -297,13 +261,17 @@ async function checkAutomod(message, settings) {
   setTimeout(() => notice.delete().catch(error => {
     if (error.code !== 10008) console.error('Could not remove automod notice:', error);
   }), 5000);
-  await logGuildEvent(
-    message.guild,
-    'AutoMod action',
-    `A message by <@${message.author.id}> in <#${message.channel.id}> was removed: ${violations.join(', ')}.`,
-    0xd64545,
-    'moderation'
-  );
+  await logEvent(message.guild, 'protection', {
+    title: '🤖 AutoMod action',
+    target: `${message.author} (\`${message.author.username}\`)`,
+    description: `**Channel:** <#${message.channel.id}>\n**Rule:** ${violations.join(', ')}\n**Content:**\n${quoteContent(message.content, 500)}`,
+    fields: [{ name: 'Message ID', value: `\`${message.id}\``, inline: true }],
+    thumbnail: message.author.displayAvatarURL(),
+    userId: message.author.id,
+    bot: message.author.bot,
+    channelId: message.channel.id,
+    audit: false
+  });
   return true;
 }
 async function endDueGiveaways() {
@@ -333,13 +301,13 @@ async function processDueTempBans() {
         await guild.bans.remove(ban.userId, `Temporary ban expired (Lobster)`).catch(error => {
           if (error.code !== 10026) throw error;
         });
-        logGuildEvent(
-          guild,
-          'Temporary ban expired',
-          `<@${ban.userId}> was automatically unbanned.`,
-          0x5BA6FB,
-          'moderation'
-        );
+        logEvent(guild, 'ban', {
+          title: '⏱️ Temporary ban expired',
+          target: `<@${ban.userId}>`,
+          description: 'The ban was lifted automatically.',
+          userId: ban.userId,
+          audit: false
+        });
       }
       db.removeTempBan(ban.guildId, ban.userId);
     } catch (error) {
@@ -351,6 +319,9 @@ async function processDueTempBans() {
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
   client.user.setActivity('Lobster · /help', { type: ActivityType.Playing });
+  for (const guild of client.guilds.cache.values()) {
+    cacheGuildInvites(guild).catch(() => {});
+  }
   if (dashboardServer.isConfigured()) {
     dashboardServer.listen(Number(process.env.DASHBOARD_PORT) || 3000)
       .then(() => console.log(`Lobster dashboard API listening on port ${Number(process.env.DASHBOARD_PORT) || 3000}`))
@@ -391,52 +362,167 @@ client.once('ready', () => {
   }, 30000);
 });
 
+client.on('guildCreate', guild => {
+  cacheGuildInvites(guild).catch(() => {});
+});
+
+client.on('guildDelete', guild => {
+  inviteCache.delete(guild.id);
+});
+
+function logTimestamp(value) {
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return 'unknown';
+  return `<t:${Math.floor(time / 1000)}:f>`;
+}
+
+function quoteContent(text, max = 350) {
+  if (!text) return '*no content*';
+  const trimmed = text.length > max ? `${text.slice(0, max)}…` : text;
+  return `\`\`\`\n${trimmed.replace(/```/g, '`​``')}\n\`\`\``;
+}
+
+const inviteCache = new Map();
+
+async function cacheGuildInvites(guild) {
+  if (!guild?.members?.me?.permissions.has(PermissionFlagsBits.ManageGuild)) return;
+  try {
+    const invites = await guild.invites.fetch();
+    inviteCache.set(guild.id, new Map(invites.map(invite => [invite.code, invite.uses || 0])));
+  } catch {}
+}
+
+async function findUsedInvite(guild) {
+  if (!guild?.members?.me?.permissions.has(PermissionFlagsBits.ManageGuild)) return null;
+  let invites;
+  try {
+    invites = await guild.invites.fetch();
+  } catch {
+    return null;
+  }
+  const previous = inviteCache.get(guild.id);
+  const next = new Map();
+  let used = null;
+  for (const invite of invites.values()) {
+    const uses = invite.uses || 0;
+    next.set(invite.code, uses);
+    if (previous && uses > (previous.get(invite.code) ?? 0) && !used) used = invite;
+  }
+  inviteCache.set(guild.id, next);
+  return used;
+}
+
+function memberRoles(member) {
+  return [...member.roles.cache.values()].filter(role => role.id !== member.guild.id);
+}
+
 client.on('messageDelete', message => {
-  if (!message.guild || !message.author) return;
-  const author = `<@${message.author.id}>`;
-  logGuildEvent(
-    message.guild,
-    'Message deleted',
-    `A message by ${author} was deleted in <#${message.channelId}>.`,
-    0x5BA6FB,
-    'messages'
-  );
+  if (!message.guild) return;
+  const author = message.author
+    ? `${message.author} (\`${message.author.username}\`)`
+    : 'unknown';
+  logEvent(message.guild, 'message', {
+    title: '🗑️ Message deleted',
+    target: author,
+    description: `**Channel:** <#${message.channelId}>\n${quoteContent(message.content)}`,
+    fields: [{ name: 'Message ID', value: `\`${message.id}\``, inline: true }],
+    userId: message.author?.id,
+    bot: message.author?.bot,
+    channelId: message.channelId,
+    auditTargetId: message.author?.id
+  });
+});
+
+client.on('messageDeleteBulk', messages => {
+  const first = messages.first();
+  if (!first?.guild) return;
+  logEvent(first.guild, 'message', {
+    title: '🧹 Bulk messages deleted',
+    description: `**Channel:** <#${first.channelId}>\n**Messages removed:** **${messages.size}**`,
+    fields: [{ name: 'Message ID range', value: `\`${[...messages.keys()].slice(-3).join('`, `')}\`` }],
+    channelId: first.channelId,
+    auditTargetId: first.channelId
+  });
 });
 
 client.on('messageUpdate', (oldMessage, newMessage) => {
-  if (!newMessage.guild || !newMessage.author || oldMessage.content === newMessage.content) return;
-  const author = `<@${newMessage.author.id}>`;
-  logGuildEvent(
-    newMessage.guild,
-    'Message edited',
-    `A message by ${author} was edited in <#${newMessage.channelId}>.`,
-    0x5BA6FB,
-    'messages'
-  );
+  if (!newMessage.guild || !newMessage.author) return;
+  if (oldMessage.content === newMessage.content) return;
+  logEvent(newMessage.guild, 'message', {
+    title: '✏️ Message edited',
+    target: `${newMessage.author} (\`${newMessage.author.username}\`)`,
+    description: `**Channel:** <#${newMessage.channelId}>\n**Before:**\n${quoteContent(oldMessage.content)}\n**After:**\n${quoteContent(newMessage.content)}`,
+    fields: [{ name: 'Message ID', value: `\`${newMessage.id}\``, inline: true }],
+    userId: newMessage.author.id,
+    bot: newMessage.author.bot,
+    channelId: newMessage.channelId,
+    audit: false
+  });
 });
 
+function permissionSnapshot(channel) {
+  return [...channel.permissionOverwrites.cache.values()]
+    .map(overwrite => `${overwrite.id}:${overwrite.allow.bitfield}:${overwrite.deny.bitfield}`)
+    .sort()
+    .join('|');
+}
+
 client.on('channelCreate', channel => {
-  if (channel.guild) logGuildEvent(channel.guild, 'Channel created', `A channel was created: <#${channel.id}>.`, 0x5BA6FB, 'channels');
+  if (!channel.guild || channel.isThread()) return;
+  logEvent(channel.guild, 'channel', {
+    title: '📚 Channel created',
+    target: `<#${channel.id}> (\`${channel.name}\`)`,
+    description: `**Type:** ${channel.type}\n**Category:** ${channel.parent ? `<#${channel.parentId}>` : 'none'}`,
+    channelId: channel.id,
+    auditTargetId: channel.id
+  });
 });
 
 client.on('channelDelete', channel => {
-  if (channel.guild) logGuildEvent(channel.guild, 'Channel deleted', `A channel was deleted: **${channel.name}**.`, 0x5BA6FB, 'channels');
+  if (!channel.guild || channel.isThread()) return;
+  logEvent(channel.guild, 'channel', {
+    title: '🗑️ Channel deleted',
+    target: `\`${channel.name}\``,
+    description: `**Type:** ${channel.type}\n**Category:** ${channel.parent ? `\`${channel.parent.name}\`` : 'none'}`,
+    channelId: channel.id,
+    auditTargetId: channel.id
+  });
+  handleChannelRemoval(channel.guild, channel.id);
 });
 
 client.on('channelUpdate', (oldChannel, newChannel) => {
-  if (newChannel.guild && (oldChannel.name !== newChannel.name || oldChannel.parentId !== newChannel.parentId)) {
-    logGuildEvent(
-      newChannel.guild,
-      'Channel updated',
-      `A channel was updated: <#${newChannel.id}>${oldChannel.name !== newChannel.name ? ` (previously **${oldChannel.name}**)` : ''}.`,
-      0x5BA6FB,
-      'channels'
-    );
-  }
+  if (!newChannel.guild || newChannel.isThread()) return;
+  const changes = [];
+  if (oldChannel.name !== newChannel.name) changes.push(`name: **${oldChannel.name}** → **${newChannel.name}**`);
+  if ('topic' in oldChannel && oldChannel.topic !== newChannel.topic) changes.push('channel topic updated');
+  if ('nsfw' in oldChannel && oldChannel.nsfw !== newChannel.nsfw) changes.push(`NSFW: **${oldChannel.nsfw ? 'on' : 'off'}** → **${newChannel.nsfw ? 'on' : 'off'}**`);
+  if ('rateLimitPerUser' in oldChannel && oldChannel.rateLimitPerUser !== newChannel.rateLimitPerUser) changes.push(`slowmode: **${oldChannel.rateLimitPerUser}s** → **${newChannel.rateLimitPerUser}s**`);
+  if (oldChannel.parentId !== newChannel.parentId) changes.push('category changed');
+  if (permissionSnapshot(oldChannel) !== permissionSnapshot(newChannel)) changes.push('channel permissions updated');
+  if (!changes.length) return;
+  logEvent(newChannel.guild, 'channel', {
+    title: '⚙️ Channel updated',
+    target: `<#${newChannel.id}>`,
+    description: changes.map(change => `• ${change}`).join('\n'),
+    channelId: newChannel.id,
+    auditTargetId: newChannel.id
+  });
 });
 
 client.on('guildMemberRemove', async member => {
-  logGuildEvent(member.guild, 'Member left', `<@${member.id}> left the server.`, 0x5BA6FB, 'members');
+  logEvent(member.guild, 'joinleave', {
+    title: member.user.bot ? '🤖 Bot left' : '👋 Member left',
+    target: `${member} (\`${member.user.username}\`)`,
+    fields: [
+      { name: 'Joined', value: member.joinedAt ? logTimestamp(member.joinedAt) : 'unknown', inline: true },
+      { name: 'Account created', value: logTimestamp(member.user.createdAt), inline: true },
+      { name: 'Member count', value: `**${member.guild.memberCount}**`, inline: true }
+    ],
+    thumbnail: member.user.displayAvatarURL(),
+    userId: member.user.id,
+    bot: member.user.bot,
+    audit: false
+  });
   const settings = db.getSettings(member.guild.id);
   if (!settings.farewellEnabled || !settings.farewellChannel) return;
   const channel = member.guild.channels.cache.get(settings.farewellChannel);
@@ -451,101 +537,379 @@ client.on('guildMemberRemove', async member => {
   }
 });
 
-client.on('guildMemberAdd', member => {
-  logGuildEvent(
-    member.guild,
-    'Member joined',
-    `<@${member.id}> joined the server. Member count: **${member.guild.memberCount}**.`,
-    0x5BA6FB,
-    'members'
-  );
+client.on('guildMemberAdd', async member => {
+  const invite = member.user.bot ? null : await findUsedInvite(member.guild);
+  const fields = [
+    { name: 'Account created', value: logTimestamp(member.user.createdAt), inline: true },
+    { name: 'Member count', value: `**${member.guild.memberCount}**`, inline: true }
+  ];
+  if (invite) {
+    fields.push({
+      name: 'Invite used',
+      value: `\`${invite.code}\`${invite.inviter ? ` by ${invite.inviter}` : ''}${invite.channel ? ` in <#${invite.channel.id}>` : ''}`,
+      inline: false
+    });
+  }
+  logEvent(member.guild, 'joinleave', {
+    title: member.user.bot ? '🤖 Bot added' : '👋 Member joined',
+    target: `${member} (\`${member.user.username}\`)`,
+    fields,
+    thumbnail: member.user.displayAvatarURL(),
+    userId: member.user.id,
+    bot: member.user.bot,
+    audit: false
+  });
 });
 
 client.on('guildMemberUpdate', (oldMember, newMember) => {
   if (oldMember.nickname !== newMember.nickname) {
-    logGuildEvent(
-      newMember.guild,
-      'Nickname changed',
-      `<@${newMember.id}>'s nickname changed from **${oldMember.nickname || 'none'}** to **${newMember.nickname || 'none'}**.`,
-      0x5BA6FB,
-      'members'
-    );
+    logEvent(newMember.guild, 'name', {
+      title: '🏷️ Nickname changed',
+      target: `${newMember}`,
+      description: `**Before:** **${oldMember.nickname || 'none'}**\n**After:** **${newMember.nickname || 'none'}**`,
+      userId: newMember.id,
+      bot: newMember.user.bot,
+      auditTargetId: newMember.id
+    });
   }
+
   const oldRoles = new Set(oldMember.roles.cache.keys());
   const newRoles = new Set(newMember.roles.cache.keys());
-  const added = [...newRoles].filter(id => !oldRoles.has(id));
-  const removed = [...oldRoles].filter(id => !newRoles.has(id));
+  const added = [...newRoles].filter(id => id !== newMember.guild.id && !oldRoles.has(id));
+  const removed = [...oldRoles].filter(id => id !== newMember.guild.id && !newRoles.has(id));
   if (added.length || removed.length) {
     const changes = [
-      ...added.map(id => `added <@&${id}>`),
-      ...removed.map(id => `removed <@&${id}>`)
+      ...added.map(id => `➕ <@&${id}>`),
+      ...removed.map(id => `➖ <@&${id}>`)
     ];
-    logGuildEvent(newMember.guild, 'Member roles changed', `<@${newMember.id}>: ${changes.join(', ')}.`, 0x5BA6FB, 'roles');
+    logEvent(newMember.guild, 'role', {
+      title: '🎭 Member roles changed',
+      target: `${newMember}`,
+      description: changes.join('\n'),
+      userId: newMember.id,
+      bot: newMember.user.bot,
+      auditTargetId: newMember.id
+    });
+  }
+
+  if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
+    const until = newMember.communicationDisabledUntilTimestamp;
+    logEvent(newMember.guild, 'timeout', {
+      title: until ? '⏱️ Member timed out' : '⏱️ Timeout removed',
+      target: `${newMember}`,
+      description: until ? `**Ends:** ${logTimestamp(until)}` : 'The timeout was removed.',
+      userId: newMember.id,
+      bot: newMember.user.bot,
+      auditTargetId: newMember.id
+    });
+  }
+
+  if (!oldMember.premiumSince && newMember.premiumSince) {
+    const settings = db.getSettings(newMember.guild.id);
+    if (settings.boosterEnabled && settings.boosterChannel) {
+      const channel = newMember.guild.channels.cache.get(settings.boosterChannel);
+      if (channel?.isTextBased()) {
+        const message = settings.boosterMessage.replaceAll('{user}', `${newMember}`).replaceAll('{server}', newMember.guild.name);
+        channel.send({ content: message, allowedMentions: { users: [newMember.id] } }).catch(console.error);
+      }
+    }
   }
 });
 
 client.on('roleCreate', role => {
-  logGuildEvent(role.guild, 'Role created', `Role created: <@&${role.id}>.`, 0x5BA6FB, 'roles');
+  logEvent(role.guild, 'role', {
+    title: '🎭 Role created',
+    target: `${role} (\`${role.name}\`)`,
+    description: `**Color:** \`${role.hexColor}\`\n**Position:** ${role.rawPosition}`,
+    auditTargetId: role.id
+  });
 });
 
 client.on('roleDelete', role => {
-  logGuildEvent(role.guild, 'Role deleted', `Role deleted: **${role.name}**.`, 0x5BA6FB, 'roles');
+  logEvent(role.guild, 'role', {
+    title: '🗑️ Role deleted',
+    target: `\`${role.name}\``,
+    description: `**Color:** \`${role.hexColor}\`\n**Members:** **${role.members.size}**`,
+    auditTargetId: role.id
+  });
 });
 
 client.on('roleUpdate', (oldRole, newRole) => {
-  if (oldRole.name !== newRole.name || oldRole.color !== newRole.color || oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
-    logGuildEvent(
-      newRole.guild,
-      'Role updated',
-      `Role <@&${newRole.id}> was updated${oldRole.name !== newRole.name ? ` (previously **${oldRole.name}**)` : ''}.`,
-      0x5BA6FB,
-      'roles'
-    );
-  }
+  const changes = [];
+  if (oldRole.name !== newRole.name) changes.push(`name: **${oldRole.name}** → **${newRole.name}**`);
+  if (oldRole.hexColor !== newRole.hexColor) changes.push(`color: \`${oldRole.hexColor}\` → \`${newRole.hexColor}\``);
+  if (oldRole.hoist !== newRole.hoist) changes.push(`hoisted: **${oldRole.hoist ? 'on' : 'off'}** → **${newRole.hoist ? 'on' : 'off'}**`);
+  if (oldRole.mentionable !== newRole.mentionable) changes.push(`mentionable: **${oldRole.mentionable ? 'on' : 'off'}** → **${newRole.mentionable ? 'on' : 'off'}**`);
+  if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) changes.push('role permissions updated');
+  if (!changes.length) return;
+  logEvent(newRole.guild, 'role', {
+    title: '⚙️ Role updated',
+    target: `${newRole}`,
+    description: changes.map(change => `• ${change}`).join('\n'),
+    auditTargetId: newRole.id
+  });
 });
 
 client.on('voiceStateUpdate', (oldState, newState) => {
   const member = newState.member || oldState.member;
-  if (!member || oldState.channelId === newState.channelId) return;
-  const change = !oldState.channelId
-    ? `joined <#${newState.channelId}>`
-    : !newState.channelId
-      ? `left <#${oldState.channelId}>`
-      : `moved from <#${oldState.channelId}> to <#${newState.channelId}>`;
-  logGuildEvent(member.guild, 'Voice channel update', `<@${member.id}> ${change}.`, 0x5BA6FB, 'voice');
+  if (!member) return;
+  const changes = [];
+  if (oldState.channelId !== newState.channelId) {
+    if (!oldState.channelId) changes.push(`🔊 joined <#${newState.channelId}>`);
+    else if (!newState.channelId) changes.push(`🚪 left <#${oldState.channelId}>`);
+    else changes.push(`🔁 <#${oldState.channelId}> → <#${newState.channelId}>`);
+  }
+  if (oldState.serverMute !== newState.serverMute) changes.push(newState.serverMute ? '🔇 server muted' : '🔈 server unmuted');
+  if (oldState.serverDeaf !== newState.serverDeaf) changes.push(newState.serverDeaf ? '🙉 server deafened' : '👂 server undeafened');
+  if (oldState.streaming !== newState.streaming) changes.push(newState.streaming ? '📺 started streaming' : '📴 stopped streaming');
+  if (oldState.selfVideo !== newState.selfVideo) changes.push(newState.selfVideo ? '📷 turned camera on' : '📹 turned camera off');
+  if (!changes.length) return;
+  logEvent(member.guild, 'voice', {
+    title: '🔊 Voice state updated',
+    target: `${member}`,
+    description: changes.map(change => `• ${change}`).join('\n'),
+    userId: member.id,
+    bot: member.user.bot,
+    channelId: newState.channelId || oldState.channelId,
+    audit: false
+  });
 });
 
 client.on('emojiCreate', emoji => {
-  logGuildEvent(emoji.guild, 'Emoji created', `Emoji **${emoji.name}** was added.`, 0x5BA6FB, 'emojis');
+  logEvent(emoji.guild, 'emoji', {
+    title: '😄 Emoji added',
+    target: `${emoji} (\`:${emoji.name}:\`)`,
+    description: `**ID:** \`${emoji.id}\``,
+    thumbnail: emoji.imageURL(),
+    auditTargetId: emoji.id
+  });
 });
 
 client.on('emojiDelete', emoji => {
-  logGuildEvent(emoji.guild, 'Emoji deleted', `Emoji **${emoji.name}** was removed.`, 0x5BA6FB, 'emojis');
+  logEvent(emoji.guild, 'emoji', {
+    title: '🗑️ Emoji deleted',
+    target: `\`:${emoji.name}:\``,
+    description: `**ID:** \`${emoji.id}\``,
+    auditTargetId: emoji.id
+  });
 });
 
 client.on('emojiUpdate', (oldEmoji, newEmoji) => {
-  logGuildEvent(newEmoji.guild, 'Emoji updated', `Emoji **${oldEmoji.name}** was renamed to **${newEmoji.name}**.`, 0x5BA6FB, 'emojis');
+  if (oldEmoji.name === newEmoji.name) return;
+  logEvent(newEmoji.guild, 'emoji', {
+    title: '✏️ Emoji updated',
+    target: `${newEmoji}`,
+    description: `**Before:** \`:${oldEmoji.name}:\`\n**After:** \`:${newEmoji.name}:\``,
+    auditTargetId: newEmoji.id
+  });
+});
+
+client.on('stickerCreate', sticker => {
+  if (!sticker.guild) return;
+  logEvent(sticker.guild, 'emoji', {
+    title: '🩹 Sticker added',
+    target: `**${sticker.name}**`,
+    description: `**Description:** ${sticker.description || 'none'}`,
+    thumbnail: sticker.imageURL(),
+    auditTargetId: sticker.id
+  });
+});
+
+client.on('stickerDelete', sticker => {
+  if (!sticker.guild) return;
+  logEvent(sticker.guild, 'emoji', {
+    title: '🗑️ Sticker deleted',
+    target: `**${sticker.name}**`,
+    auditTargetId: sticker.id
+  });
+});
+
+client.on('stickerUpdate', (oldSticker, newSticker) => {
+  if (!newSticker.guild || oldSticker.name === newSticker.name) return;
+  logEvent(newSticker.guild, 'emoji', {
+    title: '✏️ Sticker updated',
+    target: `**${oldSticker.name}** → **${newSticker.name}**`,
+    auditTargetId: newSticker.id
+  });
+});
+
+client.on('threadCreate', thread => {
+  if (!thread.guild) return;
+  logEvent(thread.guild, 'channel', {
+    title: '🧵 Thread created',
+    target: `<#${thread.id}> (\`${thread.name}\`)`,
+    description: `**Channel:** <#${thread.parentId}>\n**Owner:** ${thread.ownerId ? `<@${thread.ownerId}>` : 'unknown'}`,
+    channelId: thread.id,
+    auditTargetId: thread.id
+  });
+});
+
+client.on('threadDelete', thread => {
+  if (!thread.guild) return;
+  logEvent(thread.guild, 'channel', {
+    title: '🗑️ Thread deleted',
+    target: `\`${thread.name}\``,
+    description: `**Channel:** ${thread.parent ? `<#${thread.parentId}>` : 'unknown'}`,
+    channelId: thread.id,
+    auditTargetId: thread.id
+  });
+});
+
+client.on('threadUpdate', (oldThread, newThread) => {
+  if (!newThread.guild) return;
+  const changes = [];
+  if (oldThread.name !== newThread.name) changes.push(`name: **${oldThread.name}** → **${newThread.name}**`);
+  if (oldThread.archived !== newThread.archived) changes.push(`archived: **${oldThread.archived ? 'yes' : 'no'}** → **${newThread.archived ? 'yes' : 'no'}**`);
+  if (oldThread.locked !== newThread.locked) changes.push(`locked: **${oldThread.locked ? 'yes' : 'no'}** → **${newThread.locked ? 'yes' : 'no'}**`);
+  if (!changes.length) return;
+  logEvent(newThread.guild, 'channel', {
+    title: '⚙️ Thread updated',
+    target: `<#${newThread.id}>`,
+    description: changes.map(change => `• ${change}`).join('\n'),
+    channelId: newThread.id,
+    auditTargetId: newThread.id
+  });
+});
+
+client.on('inviteCreate', invite => {
+  if (!invite.guild) return;
+  const cache = inviteCache.get(invite.guild.id) || new Map();
+  cache.set(invite.code, invite.uses || 0);
+  inviteCache.set(invite.guild.id, cache);
+  logEvent(invite.guild, 'invite', {
+    title: '🔗 Invite created',
+    target: `\`${invite.code}\``,
+    description: `**Channel:** <#${invite.channelId}>\n**Expires:** ${invite.expiresAt ? logTimestamp(invite.expiresAt) : 'never'}\n**Max uses:** ${invite.maxUses || 'unlimited'}`,
+    executor: invite.inviter || null,
+    channelId: invite.channelId,
+    audit: false
+  });
+});
+
+client.on('inviteDelete', invite => {
+  if (!invite.guild) return;
+  const cache = inviteCache.get(invite.guild.id);
+  if (cache) cache.delete(invite.code);
+  logEvent(invite.guild, 'invite', {
+    title: '🗑️ Invite deleted',
+    target: `\`${invite.code}\``,
+    description: `**Channel:** <#${invite.channelId}>`,
+    channelId: invite.channelId
+  });
+});
+
+client.on('guildUpdate', (oldGuild, newGuild) => {
+  const changes = [];
+  if (oldGuild.name !== newGuild.name) changes.push(`name: **${oldGuild.name}** → **${newGuild.name}**`);
+  if (oldGuild.icon !== newGuild.icon) changes.push('server icon updated');
+  if (oldGuild.banner !== newGuild.banner) changes.push('server banner updated');
+  if (oldGuild.ownerId !== newGuild.ownerId) changes.push(`owner: <@${oldGuild.ownerId}> → <@${newGuild.ownerId}>`);
+  if (oldGuild.verificationLevel !== newGuild.verificationLevel) changes.push(`verification level: **${oldGuild.verificationLevel}** → **${newGuild.verificationLevel}**`);
+  if (oldGuild.afkChannelId !== newGuild.afkChannelId) changes.push('AFK channel changed');
+  if (oldGuild.afkTimeout !== newGuild.afkTimeout) changes.push(`AFK timeout: **${oldGuild.afkTimeout}s** → **${newGuild.afkTimeout}s**`);
+  if (oldGuild.systemChannelId !== newGuild.systemChannelId) changes.push('system channel changed');
+  if (oldGuild.rulesChannelId !== newGuild.rulesChannelId) changes.push('rules channel changed');
+  if (oldGuild.publicUpdatesChannelId !== newGuild.publicUpdatesChannelId) changes.push('announcement channel changed');
+  if (oldGuild.defaultMessageNotifications !== newGuild.defaultMessageNotifications) changes.push('notification setting changed');
+  if (oldGuild.preferredLocale !== newGuild.preferredLocale) changes.push(`locale: **${oldGuild.preferredLocale}** → **${newGuild.preferredLocale}**`);
+  if (!changes.length) return;
+  logEvent(newGuild, 'protection', {
+    title: '🏠 Server settings updated',
+    target: `**${newGuild.name}**`,
+    description: changes.map(change => `• ${change}`).join('\n'),
+    auditTargetId: newGuild.id
+  });
+});
+
+client.on('userUpdate', (oldUser, newUser) => {
+  const changes = [];
+  if (oldUser.username !== newUser.username) changes.push(`username: **${oldUser.username}** → **${newUser.username}**`);
+  if (oldUser.globalName !== newUser.globalName) changes.push(`display name: **${oldUser.globalName || 'none'}** → **${newUser.globalName || 'none'}**`);
+  if (oldUser.avatar !== newUser.avatar) changes.push('avatar updated');
+  if (!changes.length) return;
+  for (const guild of client.guilds.cache.values()) {
+    if (!guild.members.cache.has(newUser.id)) continue;
+    logEvent(guild, 'name', {
+      title: '🏷️ User profile updated',
+      target: `<@${newUser.id}> (\`${newUser.username}\`)`,
+      description: changes.map(change => `• ${change}`).join('\n'),
+      thumbnail: newUser.displayAvatarURL(),
+      userId: newUser.id,
+      bot: newUser.bot,
+      audit: false
+    });
+  }
+});
+
+function enumLabel(values, value) {
+  return Object.entries(values).find(([, entryValue]) => entryValue === value)?.[0] || String(value ?? 'unknown');
+}
+
+client.on('autoModerationActionExecution', execution => {
+  if (!execution.guild) return;
+  const rule = execution.autoModerationRule;
+  const ruleName = rule?.name || `Rule ${execution.ruleId}`;
+  const fields = [];
+  if (execution.messageId) fields.push({ name: 'Message ID', value: `\`${execution.messageId}\``, inline: true });
+  if (execution.matchedKeyword) fields.push({ name: 'Matched keyword', value: `\`${execution.matchedKeyword}\``, inline: true });
+  if (execution.matchedContent) fields.push({ name: 'Matched content', value: quoteContent(execution.matchedContent, 500), inline: false });
+  logEvent(execution.guild, 'protection', {
+    title: '🤖 Discord AutoMod action',
+    target: execution.user
+      ? `${execution.user} (\`${execution.user.username}\`)`
+      : `<@${execution.userId}>`,
+    description: `**Rule:** ${ruleName}\n**Trigger:** ${enumLabel(AutoModerationRuleTriggerType, execution.ruleTriggerType)}\n**Action:** ${enumLabel(AutoModerationActionType, execution.action?.type)}\n**Channel:** ${execution.channelId ? `<#${execution.channelId}>` : 'unknown'}\n**Content:**\n${quoteContent(execution.content, 500)}`,
+    fields,
+    userId: execution.userId,
+    bot: Boolean(execution.member?.user?.bot),
+    channelId: execution.channelId || undefined,
+    audit: false
+  });
+});
+
+client.on('guildBanAdd', ban => {
+  logEvent(ban.guild, 'ban', {
+    title: '🔨 Member banned',
+    target: `${ban.user} (\`${ban.user.username}\`)`,
+    description: ban.reason ? `**Reason:** ${ban.reason}` : undefined,
+    thumbnail: ban.user.displayAvatarURL(),
+    userId: ban.user.id,
+    bot: ban.user.bot,
+    auditTargetId: ban.user.id
+  });
+});
+
+client.on('guildBanRemove', ban => {
+  logEvent(ban.guild, 'ban', {
+    title: '🔨 Member unbanned',
+    target: `${ban.user} (\`${ban.user.username}\`)`,
+    thumbnail: ban.user.displayAvatarURL(),
+    userId: ban.user.id,
+    bot: ban.user.bot,
+    auditTargetId: ban.user.id
+  });
 });
 
 const auditLogCategories = new Map([
-  [AuditLogEvent.ChannelDelete, ['Channel deleted', 'channels']],
-  [AuditLogEvent.ChannelCreate, ['Channel created', 'channels']],
-  [AuditLogEvent.ChannelUpdate, ['Channel updated', 'channels']],
-  [AuditLogEvent.RoleDelete, ['Role deleted', 'roles']],
-  [AuditLogEvent.RoleCreate, ['Role created', 'roles']],
-  [AuditLogEvent.RoleUpdate, ['Role updated', 'roles']],
-  [AuditLogEvent.MemberBanAdd, ['Member banned', 'moderation']],
-  [AuditLogEvent.MemberBanRemove, ['Member unbanned', 'moderation']],
-  [AuditLogEvent.MemberKick, ['Member kicked', 'moderation']],
-  [AuditLogEvent.MemberUpdate, ['Member updated', 'moderation']],
-  [AuditLogEvent.MemberRoleUpdate, ['Member roles updated', 'roles']],
-  [AuditLogEvent.WebhookCreate, ['Webhook created', 'security']],
-  [AuditLogEvent.WebhookDelete, ['Webhook deleted', 'security']],
-  [AuditLogEvent.WebhookUpdate, ['Webhook updated', 'security']],
-  [AuditLogEvent.EmojiCreate, ['Emoji created', 'emojis']],
-  [AuditLogEvent.EmojiDelete, ['Emoji deleted', 'emojis']],
-  [AuditLogEvent.EmojiUpdate, ['Emoji updated', 'emojis']]
-]);
+  [AuditLogEvent.MemberKick, ['👢 Member kicked', 'kick']],
+  [AuditLogEvent.WebhookCreate, ['🪝 Webhook created', 'protection']],
+  [AuditLogEvent.WebhookDelete, ['🪝 Webhook deleted', 'protection']],
+  [AuditLogEvent.WebhookUpdate, ['🪝 Webhook updated', 'protection']],
+  [AuditLogEvent.AutoModerationRuleCreate, ['🚨 AutoMod rule created', 'protection']],
+  [AuditLogEvent.AutoModerationRuleUpdate, ['🚨 AutoMod rule updated', 'protection']],
+  [AuditLogEvent.AutoModerationRuleDelete, ['🚨 AutoMod rule deleted', 'protection']]
+].filter(([action]) => Number.isInteger(action)));
+
+function auditTargetLabel(entry) {
+  if (!entry.targetId) return entry.target?.name || 'Unknown';
+  if (entry.action === AuditLogEvent.WebhookCreate || entry.action === AuditLogEvent.WebhookDelete || entry.action === AuditLogEvent.WebhookUpdate) {
+    return `\`${entry.target?.name || entry.targetId}\``;
+  }
+  if (entry.action === AuditLogEvent.AutoModerationRuleCreate || entry.action === AuditLogEvent.AutoModerationRuleUpdate || entry.action === AuditLogEvent.AutoModerationRuleDelete) {
+    return `**${entry.target?.name || entry.targetId}**`;
+  }
+  return `<@${entry.targetId}>`;
+}
 
 const guardedAuditActions = new Set([
   AuditLogEvent.ChannelDelete,
@@ -567,23 +931,15 @@ const guardedAuditActions = new Set([
 
 client.on('guildAuditLogEntryCreate', async (entry, guild) => {
   const loggedAction = auditLogCategories.get(entry.action);
-  if (loggedAction && ['moderation', 'security'].includes(loggedAction[1])) {
-    const target = entry.targetId
-      ? `${entry.action === AuditLogEvent.ChannelDelete || entry.action === AuditLogEvent.ChannelCreate || entry.action === AuditLogEvent.ChannelUpdate
-        ? `<#${entry.targetId}>`
-        : entry.action === AuditLogEvent.RoleDelete || entry.action === AuditLogEvent.RoleCreate || entry.action === AuditLogEvent.RoleUpdate
-          ? `<@&${entry.targetId}>`
-          : `<@${entry.targetId}>`}`
-      : entry.target?.name || 'Unknown target';
-    const executor = entry.executorId ? `<@${entry.executorId}>` : 'Unknown moderator';
-    const reason = entry.reason ? `\nReason: ${entry.reason.slice(0, 500)}` : '';
-    await logGuildEvent(
-      guild,
-      loggedAction[0],
-      `${target} · action by ${executor}${reason}`,
-      loggedAction[1] === 'moderation' ? 0xd64545 : 0x5BA6FB,
-      loggedAction[1]
-    );
+  if (loggedAction) {
+    await logEvent(guild, loggedAction[1], {
+      title: loggedAction[0],
+      target: auditTargetLabel(entry),
+      executorId: entry.executorId,
+      executorTag: entry.executor?.tag || null,
+      reason: entry.reason ? entry.reason.slice(0, 500) : null,
+      audit: false
+    });
   }
   if (!guardedAuditActions.has(entry.action)) return;
   const settings = db.getSettings(guild.id);
@@ -612,24 +968,49 @@ client.on('guildAuditLogEntryCreate', async (entry, guild) => {
     } else {
       actionTaken += ' The bot could not kick the executor; check role hierarchy and Kick Members permission.';
     }
-    await logGuildEvent(
-      guild,
-      'Anti-nuke alert',
-      `<@${executor.id}> exceeded the action limit while performing **${actionName}**.\n${actionTaken}`,
-      0xd64545,
-      'security'
-    );
+    await logEvent(guild, 'protection', {
+      title: '🚨 Anti-nuke alert',
+      target: `<@${executor.id}> (\`${executor.user.tag}\`)`,
+      description: `The action limit was exceeded while performing **${actionName}**.\n${actionTaken}`,
+      thumbnail: executor.user.displayAvatarURL(),
+      audit: false
+    });
   } catch (error) {
     console.error(`Anti-nuke check failed in guild ${guild.id}:`, error);
   }
 });
 
+async function logReaction(reaction, user, added) {
+  if (user.bot) return;
+  try {
+    if (reaction.partial) await reaction.fetch();
+    const guild = reaction.message.guild;
+    if (!guild) return;
+    const config = getLogConfig(guild.id);
+    if (!config.enabled || !config.types.reaction.enabled) return;
+    const message = reaction.message.partial ? await reaction.message.fetch() : reaction.message;
+    const emoji = reaction.emoji.id
+      ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
+      : reaction.emoji.name;
+    logEvent(guild, 'reaction', {
+      title: added ? '💠 Reaction added' : '💠 Reaction removed',
+      target: `${user} (\`${user.username}\`)`,
+      description: `**Emoji:** ${emoji}\n**Channel:** <#${message.channelId}>\n**Message:** [Jump to message](https://discord.com/channels/${guild.id}/${message.channelId}/${message.id})`,
+      userId: user.id,
+      channelId: message.channelId,
+      audit: false
+    });
+  } catch {}
+}
+
 client.on('messageReactionAdd', (reaction, user) => {
   handleReactionRole(reaction, user, true);
+  logReaction(reaction, user, true);
 });
 
 client.on('messageReactionRemove', (reaction, user) => {
   handleReactionRole(reaction, user, false);
+  logReaction(reaction, user, false);
 });
 
 client.on('messageCreate', async message => {
@@ -734,6 +1115,15 @@ client.on('messageCreate', async message => {
         && preferredPermissions?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages])
         ? preferredChannel
         : message.channel;
+      await logEvent(message.guild, 'level', {
+        title: '📈 Level up',
+        target: `${message.author} (\`${message.author.username}\`)`,
+        description: `Reached **level ${result.level}**.`,
+        thumbnail: message.author.displayAvatarURL(),
+        userId: message.author.id,
+        channelId: message.channelId,
+        audit: false
+      });
       if (levelChannel?.isTextBased()) {
         const embed = new EmbedBuilder()
           .setColor(0x5BA6FB)
@@ -750,13 +1140,6 @@ client.on('messageCreate', async message => {
         setTimeout(() => levelNotice.delete().catch(error => {
           if (error.code !== 10008) console.error('Could not remove level-up notice:', error);
         }), 3000);
-        await logGuildEvent(
-          message.guild,
-          'Level up',
-          `<@${message.author.id}> reached **level ${result.level}**.`,
-          0x5BA6FB,
-          'levels'
-        );
       }
     }
   } catch (error) {
@@ -765,12 +1148,15 @@ client.on('messageCreate', async message => {
 });
 
 client.on('interactionCreate', async interaction => {
+  if (await handleLogInteraction(interaction)) return;
+
   if (interaction.isChatInputCommand()) {
     if (!interaction.guild) {
       await interaction.reply({ content: 'Commands can only be used in a server.', ephemeral: true });
       return;
     }
-    const command = client.commands.get(interaction.commandName);
+    const command = client.commands.get(interaction.commandName)
+      || client.commands.get(client.aliases.get(interaction.commandName));
     if (!command) return;
     const member = interaction.member instanceof GuildMember
       ? interaction.member
@@ -884,68 +1270,65 @@ client.on('interactionCreate', async interaction => {
     return;
   }
 
-  if (!interaction.isButton()) return;
-  if (interaction.customId.startsWith('ship:')) {
-    if (interaction.message.author.id !== client.user.id) return;
-    const deleteMatch = interaction.customId.match(/^ship:delete:(\d{17,20})$/);
-    if (deleteMatch) {
-      if (interaction.user.id !== deleteMatch[1]) {
-        await interaction.reply({ content: 'Only the person who started this ship can delete it.', ephemeral: true });
-        return;
-      }
-      try {
-        await interaction.deferUpdate();
-        await interaction.message.delete();
-      } catch (error) {
-        console.error('Could not delete ship card:', error);
-        if (error.code !== 10062 && error.code !== 40060) {
-          await interaction.followUp({ content: 'I could not delete that ship card.', ephemeral: true }).catch(responseError => {
-            if (responseError.code !== 10062 && responseError.code !== 40060) {
-              console.error('Could not report ship card deletion failure:', responseError);
-            }
-          });
-        }
-      }
-      return;
-    }
-
-    const againMatch = interaction.customId.match(/^ship:again:(\d{17,20}):(\d{17,20}):(\d{17,20})$/);
-    if (!againMatch) {
-      await interaction.reply({ content: 'This ship card is invalid. Run `/ship` to make a new one.', ephemeral: true });
-      return;
-    }
+  if (interaction.isStringSelectMenu() && interaction.customId === 'lobster_help_category') {
     try {
       await interaction.deferUpdate();
-      const [, , firstId, secondId] = againMatch;
-      const [first, second] = await Promise.all([
-        interaction.guild.members.fetch(firstId),
-        interaction.guild.members.fetch(secondId)
-      ]);
-      const shipCommand = client.commands.get('ship');
-      const score = Math.floor(Math.random() * 101);
-      const image = await require('./utils/ship-card').createShipCard(first.user, second.user, score);
-      await interaction.message.edit({
-        ...stylePayload(shipCommand, shipCommand.shipPayload(first.user, second.user, score, image, againMatch[1]), {
-          client,
-          guild: interaction.guild,
-          isSlash: false
-        }),
-        attachments: []
-      });
-    } catch (error) {
-      if (error.code === 10062 || error.code === 40060) {
-        console.warn(`Ship button interaction expired or was already acknowledged (${error.code}).`);
+      const category = interaction.values[0];
+      if (category !== 'Home' && !Object.hasOwn(CATEGORIES, category)) {
+        await interaction.followUp({ content: 'That help category is no longer available. Run `/help` to open a new menu.', ephemeral: true });
         return;
       }
-      console.error('Could not reroll ship card:', error);
-      await interaction.followUp({ content: 'I could not make a new ship card right now. Please try again later.', ephemeral: true }).catch(responseError => {
-        if (responseError.code !== 10062 && responseError.code !== 40060) {
-          console.error('Could not report ship reroll failure:', responseError);
+      const prefix = db.getSettings(interaction.guildId).prefix || 'l';
+      const embed = category === 'Home'
+        ? overviewEmbed(client, prefix, interaction.guild)
+        : categoryEmbed(category, client.commands.filter(command => commandCategory(command) === category), prefix, interaction.guild, client);
+      await interaction.editReply(stylePayload(client.commands.get('help'), {
+        embeds: [embed],
+        components: [categoryMenu(), helpButtons()]
+      }, { client, guild: interaction.guild, isSlash: true }));
+    } catch (error) {
+      if (error.code === 10062 || error.code === 40060) {
+        console.warn(`Help menu interaction expired or was already acknowledged (${error.code}).`);
+        return;
+      }
+      console.error('Help menu interaction failed:', error);
+      if (interaction.deferred || interaction.replied) {
+        try {
+          await interaction.followUp({ content: 'The help menu could not be updated. Run `/help` to open a new menu.', ephemeral: true });
+        } catch (responseError) {
+          console.error(`Could not report the help menu error: ${responseError.code}`);
         }
-      });
+      }
+      return;
     }
     return;
   }
+
+  if (!interaction.isButton()) return;
+    if (interaction.customId.startsWith('ship:')) {
+      if (interaction.message.author.id !== client.user.id) return;
+
+      if (interaction.customId.startsWith('ship:delete:')) {
+        const deleteMatch = interaction.customId.match(/^ship:delete:(\d{17,20})$/);
+        if (!deleteMatch || interaction.user.id !== deleteMatch[1]) {
+          await interaction.reply({ content: 'You cannot delete this ship card.', ephemeral: true }).catch(() => {});
+          return;
+        }
+        try {
+          await interaction.deferUpdate();
+          await interaction.message.delete();
+        } catch (error) {
+          console.error('Delete ship error:', error);
+        }
+        return;
+      }
+
+      if (interaction.customId.startsWith('ship:again:')) {
+        await interaction.reply({ content: 'Ship rerolling is temporarily disabled for maintenance. Please use `/ship` to create a new one.', ephemeral: true }).catch(() => {});
+        return;
+      }
+      return;
+    }
   if (interaction.customId === 'verification_verify') {
     if (!interaction.guild) {
       await interaction.reply({ content: 'Verification can only be completed in a server.', ephemeral: true });
@@ -1185,6 +1568,14 @@ client.on('interactionCreate', async interaction => {
           })
         });
         await interaction.editReply(`Your private ticket is ready: ${ticketChannel}`);
+        logEvent(interaction.guild, 'ticket', {
+          title: '🎫 Ticket opened',
+          target: `${interaction.user} (\`${interaction.user.username}\`)`,
+          description: `**Channel:** ${ticketChannel}\n**Name:** \`${ticketChannel.name}\``,
+          executor: interaction.user,
+          channelId: ticketChannel.id,
+          audit: false
+        });
       } finally {
         openingTickets.delete(`${interaction.guildId}:${interaction.user.id}`);
       }
@@ -1233,6 +1624,14 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply(transcriptChannel
         ? `Transcript saved in ${transcriptChannel}. This ticket will close in 5 seconds.`
         : 'Ticket transcripts are disabled. This ticket will close in 5 seconds.');
+      logEvent(interaction.guild, 'ticket', {
+        title: '🎫 Ticket closed',
+        target: `**#${interaction.channel.name}**`,
+        description: `**Owner:** <@${ticketOwnerId}>\n**Closed by:** ${interaction.user}${transcriptChannel ? `\n**Transcript:** ${transcriptChannel}` : ''}`,
+        executor: interaction.user,
+        channelId: interaction.channelId,
+        audit: false
+      });
       setTimeout(() => interaction.channel.delete('Ticket closed').catch(error => {
         console.error('Could not close ticket channel:', error);
       }), 5000);
@@ -1260,13 +1659,14 @@ client.on('guildMemberAdd', async member => {
     }
     try {
       await member.kick(reason);
-      await logGuildEvent(
-        member.guild,
-        'Join security',
-        `A new member (<@${member.id}>) was removed: ${reason}.`,
-        0xd64545,
-        'security'
-      );
+      await logEvent(member.guild, 'protection', {
+        title: '🚨 Join security',
+        target: `${member} (\`${member.user.tag}\`)`,
+        description: `A new member was removed: ${reason}.`,
+        userId: member.id,
+        bot: member.user.bot,
+        audit: false
+      });
     } catch (error) {
       console.error(`Could not enforce join security for ${member.user.tag}:`, error);
     }
@@ -1295,26 +1695,28 @@ client.on('guildMemberAdd', async member => {
       if (!member.kickable) {
         console.error(`Could not enforce join raid protection for ${member.user.tag}: bot role is below the new member's highest role.`);
         if (shouldLogAlert) {
-          await logGuildEvent(
-            member.guild,
-            'Join raid protection',
-            `Join rate exceeded ${settings.joinRaidProtection.limit} members in ${settings.joinRaidProtection.windowSeconds} seconds, but <@${member.id}> could not be kicked. Check Lobster's role hierarchy and Kick Members permission.`,
-            0xd64545,
-            'security'
-          );
+          await logEvent(member.guild, 'protection', {
+            title: '🚨 Join raid protection',
+            target: `${member} (\`${member.user.tag}\`)`,
+            description: `Join rate exceeded ${settings.joinRaidProtection.limit} members in ${settings.joinRaidProtection.windowSeconds} seconds, but the member could not be kicked. Check Lobster’s role hierarchy and Kick Members permission.`,
+            userId: member.id,
+            bot: member.user.bot,
+            audit: false
+          });
         }
         return;
       }
       try {
         await member.kick('Lobster join raid protection: server join rate exceeded the configured limit');
         if (shouldLogAlert) {
-          await logGuildEvent(
-            member.guild,
-            'Join raid protection',
-            `<@${member.id}> triggered the join-rate guard after the server exceeded ${settings.joinRaidProtection.limit} joins in ${settings.joinRaidProtection.windowSeconds} seconds. Further eligible joiners are temporarily blocked.`,
-            0xd64545,
-            'security'
-          );
+          await logEvent(member.guild, 'protection', {
+            title: '🚨 Join raid protection',
+            target: `${member} (\`${member.user.tag}\`)`,
+            description: `The member triggered the join-rate guard after the server exceeded ${settings.joinRaidProtection.limit} joins in ${settings.joinRaidProtection.windowSeconds} seconds. Further eligible joiners are temporarily blocked.`,
+            userId: member.id,
+            bot: member.user.bot,
+            audit: false
+          });
         }
       } catch (error) {
         console.error(`Could not enforce join raid protection for ${member.user.tag}:`, error);
@@ -1330,13 +1732,14 @@ client.on('guildMemberAdd', async member => {
     if (!unverifiedRole || unverifiedRole.managed || !unverifiedRole.editable
       || !member.guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles)) {
       console.error(`Could not assign the unverified role to ${member.user.tag}: check the verification settings and Lobster's role hierarchy.`);
-      await logGuildEvent(
-        member.guild,
-        'Verification setup issue',
-        `Could not assign the unverified role to <@${member.id}>. Check the configured role and Lobster's role hierarchy.`,
-        0xd64545,
-        'security'
-      );
+      await logEvent(member.guild, 'protection', {
+        title: '🚨 Verification setup issue',
+        target: `${member} (\`${member.user.tag}\`)`,
+        description: 'Could not assign the unverified role. Check the configured role and Lobster’s role hierarchy.',
+        userId: member.id,
+        bot: member.user.bot,
+        audit: false
+      });
     } else {
       try {
         await member.roles.add(unverifiedRole, 'New member is pending Lobster verification');

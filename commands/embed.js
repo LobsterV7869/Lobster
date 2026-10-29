@@ -17,7 +17,7 @@ module.exports = {
   category: 'Configuration',
   permissions: [PermissionFlagsBits.ManageMessages],
   botPermissions: [PermissionFlagsBits.SendMessages],
-  async run({ interaction, message, isSlash, args, channel }) {
+  async run({ interaction, message, isSlash, args, channel, guild }) {
     let title;
     let description;
     let color = '#5BA6FB';
