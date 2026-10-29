@@ -1041,6 +1041,17 @@ client.on('messageCreate', async message => {
 
     if (await checkAutomod(message, settings)) return;
 
+    const { games } = require('./commands/wordgame');
+    const activeGame = games.get(message.channel.id);
+    if (activeGame) {
+      const isCorrect = message.content.toLowerCase() === (activeGame.lang === 'az' ? activeGame.en.toLowerCase() : activeGame.az.toLowerCase());
+      if (isCorrect) {
+        message.reply(`<:ZoomFace:1565459448552620163> Correct! The word was **${activeGame.lang === 'az' ? activeGame.en : activeGame.az}**.`);
+        games.delete(message.channel.id);
+        return;
+      }
+    }
+
     if (settings.counting && message.channel.id === settings.countingChannel) {
       const trimmed = message.content.trim();
       if (!/^\d+$/.test(trimmed)) {

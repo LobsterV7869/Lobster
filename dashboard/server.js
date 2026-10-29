@@ -258,6 +258,9 @@ function createDashboardServer(client) {
       boosterEnabled: Boolean(settings.boosterEnabled),
       boosterChannel: settings.boosterChannel,
       boosterMessage: settings.boosterMessage,
+      wordGameEnabled: Boolean(settings.wordGameEnabled),
+      wordGameChannel: settings.wordGameChannel,
+      wordGameLanguage: settings.wordGameLanguage,
       ticketChannel: settings.ticketChannel,
       ticketCategory: settings.ticketCategory,
       ticketAdminRole: settings.ticketAdminRole,
@@ -393,7 +396,7 @@ function createDashboardServer(client) {
     const channelFields = [
       'welcomeChannel', 'farewellChannel', 'auditLogChannel', 'levelUpChannel',
       'countingChannel', 'ticketChannel', 'ticketTranscriptChannel',
-      'verificationChannel', 'verificationLogChannel'
+      'verificationChannel', 'verificationLogChannel', 'wordGameChannel'
     ];
     const roleFields = ['autorole', 'ticketAdminRole', 'verificationRole', 'unverifiedRole', 'quarantineRole'];
     for (const key of channelFields) {
