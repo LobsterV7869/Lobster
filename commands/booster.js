@@ -34,7 +34,10 @@ module.exports = {
       });
     }
 
-    db.updateSettings(guild.id, updates);
+    for (const [key, value] of Object.entries(updates)) {
+      db.updateSetting(guild.id, key, value);
+    }
+
     interaction.reply({ content: 'Booster settings updated!', ephemeral: true });
   }
 };
