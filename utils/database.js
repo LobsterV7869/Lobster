@@ -151,7 +151,7 @@ function defaults(guildId) {
     lastCounter: null,
     boosterEnabled: 0,
     boosterChannel: null,
-    boosterMessage: 'Thank you {user} for boosting the server!',
+    boosterMessage: '🚀 FROZENCRAFT • BOOST\n\n💜 {user} bizə güc verdi!\n\nBir boost, daha güclü bir icma! Dəstəyin üçün təşəkkür edirik. FrozenCraft-ın inkişafında sənin də imzan var! 💎\n\n⚡ Boost edən\n{user}\n\n🚀 Ümumi boost sayı\n{boost_count}\n\n🏆 Serverin boost səviyyəsi\n{boost_level}\n\n━━━━━━━━━━━━━━━━━━\n\n💜 Dəstəyin bizim üçün dəyərlidir!\n\n❄️ FrozenCraft • Birlikdə zirvəyə!',
     register: 0,
     antiself: 0,
     antiselfPermissions: {},

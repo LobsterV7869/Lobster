@@ -9,7 +9,7 @@ module.exports = {
       .setName('channel')
       .setDescription('Channel for boost notifications')
       .addChannelTypes(ChannelType.GuildText))
-    .addStringOption(option => option.setName('message').setDescription('Boost message; supports {user}, {server}').setMaxLength(4000))
+    .addStringOption(option => option.setName('message').setDescription('Boost message; supports {user}, {server}, {boost_count}, {boost_level}').setMaxLength(4000))
     .addBooleanOption(option => option.setName('enabled').setDescription('Enable or disable boost notifications')),
   category: 'Configuration',
   permissions: [PermissionFlagsBits.ManageGuild],

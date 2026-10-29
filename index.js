@@ -609,7 +609,11 @@ client.on('guildMemberUpdate', (oldMember, newMember) => {
     if (settings.boosterEnabled && settings.boosterChannel) {
       const channel = newMember.guild.channels.cache.get(settings.boosterChannel);
       if (channel?.isTextBased()) {
-        const message = settings.boosterMessage.replaceAll('{user}', `${newMember}`).replaceAll('{server}', newMember.guild.name);
+        const message = settings.boosterMessage
+          .replaceAll('{user}', `${newMember}`)
+          .replaceAll('{server}', newMember.guild.name)
+          .replaceAll('{boost_count}', newMember.guild.premiumSubscriptionCount || 0)
+          .replaceAll('{boost_level}', newMember.guild.premiumTier || 0);
         channel.send({ content: message, allowedMentions: { users: [newMember.id] } }).catch(console.error);
       }
     }
