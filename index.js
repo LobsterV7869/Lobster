@@ -1067,7 +1067,7 @@ client.on('messageCreate', async message => {
         db.updateSetting(message.guild.id, 'lastCount', number);
         db.updateSetting(message.guild.id, 'lastCounter', message.author.id);
         try {
-          await message.react('✅');
+          await message.react('1565459448552620163');
         } catch (error) {
           console.error('Could not react to counting message:', error);
         }
@@ -1090,6 +1090,7 @@ client.on('messageCreate', async message => {
         content: automaticReply[1].replaceAll('{user}', `${message.author}`).replaceAll('{server}', message.guild.name),
         allowedMentions: { parse: [], users: [message.author.id] }
       });
+      return; // Stop processing after auto-reply to prevent potential double-replies
     }
 
     const prefix = settings.prefix || 'l';
