@@ -29,7 +29,7 @@ module.exports = {
     const lang = interaction.options.getString('language') || 'az';
 
     if (action === 'start') {
-      if (games.has(interaction.channelId)) return interaction.reply({ content: `${ZOOM_FACE} A game is already active in this channel!`, ephemeral: true });
+      if (games.has(interaction.channelId)) return interaction.reply({ content: `${ZOOM_FACE} A game is already active!`, ephemeral: true });
       
       const word = words[Math.floor(Math.random() * words.length)];
       games.set(interaction.channelId, { ...word, lang });
@@ -37,7 +37,7 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setColor('#5BA6FB')
         .setTitle(`${ZOOM_FACE} Word Game Started!`)
-        .setDescription(`Translate this word: **${lang === 'az' ? word.az : word.en}**`);
+        .setDescription(`Translate this word: **${lang === 'az' ? word.az : word.en}**\n(Type the translation in chat)`);
       
       interaction.reply({ embeds: [embed] });
     } else {
@@ -46,5 +46,5 @@ module.exports = {
       interaction.reply({ content: `${ZOOM_FACE} Game stopped.` });
     }
   },
-  games // Export for index.js to use
+  games
 };
