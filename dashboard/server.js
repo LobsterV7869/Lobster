@@ -466,13 +466,14 @@ function createDashboardServer(client) {
       }
       updates.welcomeColor = body.welcomeColor;
     }
-    for (const key of ['welcomeEnabled', 'farewellEnabled', 'automod', 'eventLogsEnabled', 'levelsEnabled', 'counting', 'blockBots', 'verificationEnabled', 'boosterEnabled']) {
+    for (const key of ['welcomeEnabled', 'farewellEnabled', 'automod', 'eventLogsEnabled', 'levelsEnabled', 'counting', 'blockBots', 'verificationEnabled', 'boosterEnabled', 'wordGameEnabled']) {
       if (Object.hasOwn(body, key)) {
         if (typeof body[key] !== 'boolean') throw new Error(`${key} must be enabled or disabled.`);
         updates[{
           welcomeEnabled: 'welcomer',
           farewellEnabled: 'farewellEnabled',
           boosterEnabled: 'boosterEnabled',
+          wordGameEnabled: 'wordGameEnabled',
           automod: 'automod',
           eventLogsEnabled: 'eventLogsEnabled',
           levelsEnabled: 'levelsEnabled',

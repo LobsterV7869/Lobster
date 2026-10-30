@@ -21,7 +21,7 @@ module.exports = {
       .setDescription('Game language')
       .addChoices({ name: 'Azerbaijani', value: 'az' }, { name: 'English', value: 'en' })),
   category: 'Community',
-  permissions: [PermissionFlagsBits.ManageMessages],
+  permissions: [],
   async run({ interaction, guild, isSlash }) {
     if (!isSlash) return interaction.reply({ content: 'Use slash commands.', ephemeral: true });
 
