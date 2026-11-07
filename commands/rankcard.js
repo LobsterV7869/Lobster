@@ -1,5 +1,4 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { replyWithCard } = require('../canvas/send');
 const db = require('../utils/database');
 
 module.exports = {
@@ -7,6 +6,7 @@ module.exports = {
   category: 'Fun',
   permissions: [],
   async run({ interaction, guild, user }) {
+    const { replyWithCard } = require('../canvas/send');
     const data = db.getUser(guild.id, user.id) || {};
     const level = data.level || 0;
     const xp = data.xp || 0;

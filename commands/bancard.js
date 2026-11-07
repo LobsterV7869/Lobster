@@ -1,5 +1,4 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { replyWithCard } = require('../canvas/send');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -10,6 +9,7 @@ module.exports = {
   category: 'Moderation',
   permissions: [PermissionFlagsBits.BanMembers],
   async run({ interaction }) {
+    const { replyWithCard } = require('../canvas/send');
     const user = interaction.options.getUser('user');
     await replyWithCard(interaction, 'result', {
       type: 'success',

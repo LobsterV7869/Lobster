@@ -3,7 +3,12 @@
  * @module canvas/cards/profileCard
  */
 
-const { createCanvas } = require('@napi-rs/canvas');
+let _canvas = null;
+function getCanvas() {
+  if (_canvas) return _canvas;
+  try { _canvas = require('@napi-rs/canvas'); } catch (e) { _canvas = null; }
+  return _canvas;
+}
 const theme = require('../theme');
 const { drawBase, cardBounds, drawAvatar, fitText, drawPanel, drawProgressBar, drawPill, formatNumber, font } = require('../helpers');
 
@@ -12,9 +17,10 @@ const { drawBase, cardBounds, drawAvatar, fitText, drawPanel, drawProgressBar, d
  * @returns {Promise<Buffer>}
  */
 async function render(data = {}) {
+  if (!getCanvas()) throw new Error('@napi-rs/canvas is not installed');
   const w = theme.WIDTH;
   const h = theme.DEFAULT_HEIGHT;
-  const canvas = createCanvas(w, h);
+  const canvas = getCanvas().createCanvas(w, h);
   const ctx = canvas.getContext('2d');
 
   drawBase(ctx, w, h);

@@ -1,11 +1,11 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { replyWithCard } = require('../canvas/send');
 
 module.exports = {
   data: new SlashCommandBuilder().setName('giveawaycard').setDescription('Giveaway result as canvas card'),
   category: 'Fun',
   permissions: [],
   async run({ interaction }) {
+    const { replyWithCard } = require('../canvas/send');
     await replyWithCard(interaction, 'event', {
       title: 'Nitro Giveaway',
       status: 'ENDED',

@@ -1,5 +1,4 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { replyWithCard } = require('../canvas/send');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,6 +8,7 @@ module.exports = {
   category: 'Utility',
   permissions: [],
   async run({ interaction, guild }) {
+    const { replyWithCard } = require('../canvas/send');
     const user = interaction.options.getUser('user') || interaction.user;
     const member = await guild.members.fetch(user.id).catch(() => null);
     const roles = member ? member.roles.cache.size - 1 : 0;

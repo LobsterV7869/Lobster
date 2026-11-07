@@ -3,7 +3,12 @@
  * @module canvas/cards/leaderboardCard
  */
 
-const { createCanvas } = require('@napi-rs/canvas');
+let _canvas = null;
+function getCanvas() {
+  if (_canvas) return _canvas;
+  try { _canvas = require('@napi-rs/canvas'); } catch (e) { _canvas = null; }
+  return _canvas;
+}
 const theme = require('../theme');
 const { drawBase, cardBounds, drawAvatar, fitText, drawPanel, drawIcon, formatNumber, font } = require('../helpers');
 
@@ -12,6 +17,7 @@ const { drawBase, cardBounds, drawAvatar, fitText, drawPanel, drawIcon, formatNu
  * @returns {Promise<Buffer>}
  */
 async function render(data = {}) {
+  if (!getCanvas()) throw new Error('@napi-rs/canvas is not installed');
   const entries = Array.isArray(data.entries) ? data.entries.slice(0, 10) : [];
   const rowH = 78 * theme.SCALE;
   const headerH = 130 * theme.SCALE;
@@ -21,7 +27,7 @@ async function render(data = {}) {
   const contentH = headerH + entries.length * (rowH + 10 * theme.SCALE) + footerH + pad;
   const h = Math.min(theme.MAX_HEIGHT, Math.max(theme.DEFAULT_HEIGHT, contentH + margin * 2));
   const w = theme.WIDTH;
-  const canvas = createCanvas(w, h);
+  const canvas = getCanvas().createCanvas(w, h);
   const ctx = canvas.getContext('2d');
 
   drawBase(ctx, w, h);
