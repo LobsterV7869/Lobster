@@ -28,6 +28,12 @@ const voiceManager = require('./dashboard/voice-manager');
 const { executeCommand } = require('./utils/handler');
 const { stylePayload, styledContext } = require('./utils/command-style');
 const { logEvent, handleChannelRemoval } = require('./utils/logging/logger');
+const { loadZoomEmojis, zoomReaction } = require('./utils/emojis');
+const { getDict } = require('./utils/wordgame-dict');
+const { getWordGameState, saveWordGameState, ensureLangState, getLang, getGameChannel } = require('./utils/wordgame-store');
+const { normalizeWord, getRequiredLetter, validateWord } = require('./utils/wordchain');
+const { t } = require('./utils/wordgame-text');
+const { withLock, getLockKey } = require('./utils/wordgame');
 const { getLogConfig } = require('./utils/logging/config');
 const { handleLogInteraction } = require('./utils/logging/interactions');
 const backups = require('./utils/backups');
@@ -316,12 +322,14 @@ async function processDueTempBans() {
   }
 }
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   client.user.setActivity('Lobster · /help', { type: ActivityType.Playing });
   for (const guild of client.guilds.cache.values()) {
     cacheGuildInvites(guild).catch(() => {});
   }
+  try { const { loadAzDict, loadEnDict } = require('./utils/wordgame-dict'); loadAzDict(); loadEnDict(); } catch(e) { console.error(e); }
+  try { await loadZoomEmojis(client); } catch(e) { console.error(e); }
   if (dashboardServer.isConfigured()) {
     dashboardServer.listen(Number(process.env.DASHBOARD_PORT) || 3000)
       .then(() => console.log(`Lobster dashboard API listening on port ${Number(process.env.DASHBOARD_PORT) || 3000}`))
@@ -1041,15 +1049,84 @@ client.on('messageCreate', async message => {
 
     if (await checkAutomod(message, settings)) return;
 
-    const { games } = require('./commands/wordgame');
-    const activeGame = games.get(message.channel.id);
-    if (activeGame) {
-      const isCorrect = message.content.toLowerCase() === (activeGame.lang === 'az' ? activeGame.en.toLowerCase() : activeGame.az.toLowerCase());
-      if (isCorrect) {
-        message.reply(`<:ZoomFace:1565459448552620163> Correct! The word was **${activeGame.lang === 'az' ? activeGame.en : activeGame.az}**.`);
-        games.delete(message.channel.id);
+        // Word chain game handler (one place, one reply per message)
+    try {
+      const state = getWordGameState(message.guild.id);
+      const azState = ensureLangState(state, 'az');
+      const enState = ensureLangState(state, 'en');
+      const gameChannelId = getGameChannel(message.guild.id);
+      const targetAz = azState.active && (azState.channelId === message.channel.id || gameChannelId === message.channel.id);
+      const targetEn = enState.active && (enState.channelId === message.channel.id || gameChannelId === message.channel.id);
+      const contentTrim = message.content.trim();
+      if (targetAz || targetEn) {
+        const lang = targetAz ? 'az' : 'en';
+        const key = getLockKey(message.guild.id, message.channel.id, lang);
+        await withLock(key, async () => {
+          const st2 = getWordGameState(message.guild.id);
+          const ls2 = ensureLangState(st2, lang);
+          if (!ls2.active) return;
+          if (ls2.channelId && ls2.channelId !== message.channel.id) return;
+          if (gameChannelId && ls2.channelId && ls2.channelId !== message.channel.id) return;
+          const parts = contentTrim.split(/\s+/);
+          if (parts.length !== 1) return;
+          const word = parts[0];
+          const dict = getDict(lang);
+          const validation = validateWord({ word, lang, dictSet: dict, usedSet: new Set(ls2.used || []), lastWord: ls2.lastWord, lastPlayerId: ls2.lastPlayerId, playerId: message.author.id });
+          if (!validation.ok) {
+            try {
+              const react = zoomReaction();
+              if (react && react !== '✅') {
+                await message.react(react).catch(async () => { try { await message.react('✅'); } catch(e){} });
+              } else {
+                await message.react('❌').catch(() => {});
+              }
+            } catch (e) {}
+            let errMsg;
+            if (validation.reason === 'wrong_letter') errMsg = t(lang, 'wrong_letter', validation.required);
+            else if (validation.reason === 'not_found') errMsg = t(lang, 'not_found');
+            else if (validation.reason === 'used') errMsg = t(lang, 'used');
+            else if (validation.reason === 'same_player') errMsg = t(lang, 'same_player');
+            else if (validation.reason === 'short') errMsg = t(lang, 'short');
+            else errMsg = t(lang, 'invalid');
+            try {
+              const reply = await message.reply(errMsg);
+              setTimeout(() => reply.delete().catch(() => {}), 5000);
+            } catch (e) {}
+            return;
+          }
+          const nw = validation.word;
+          try {
+            const react = zoomReaction();
+            if (react && react !== '✅') {
+              await message.react(react).catch(async () => { try { await message.react('✅'); } catch(e){} });
+            } else {
+              await message.react('✅').catch(() => {});
+            }
+          } catch (e) {}
+          ls2.lastWord = nw;
+          ls2.lastPlayerId = message.author.id;
+          ls2.used.push(nw);
+          if (ls2.used.length > 2000) ls2.used = ls2.used.slice(ls2.used.length - 1500);
+          ls2.streak = (ls2.streak || 0) + 1;
+          ls2.total = (ls2.total || 0) + 1;
+          if (!ls2.players[message.author.id]) ls2.players[message.author.id] = { score: 0 };
+          ls2.players[message.author.id].score = (ls2.players[message.author.id].score || 0) + 1;
+          if (nw.length >= 7) ls2.players[message.author.id].score = (ls2.players[message.author.id].score || 0) + 1;
+          if ((ls2.streak || 0) > (ls2.record || 0)) ls2.record = ls2.streak;
+          saveWordGameState(message.guild.id, st2);
+          if ((ls2.streak || 0) % 10 === 0) {
+            try {
+              const { makeGameOverEmbed } = require('./utils/wordgame');
+              const emb = makeGameOverEmbed(lang, ls2);
+              await message.channel.send({ embeds: [emb] });
+            } catch (e) {}
+          }
+          return;
+        });
         return;
       }
+    } catch (e) {
+      console.error('Word chain handler error:', e);
     }
 
     if (settings.counting && message.channel.id === settings.countingChannel) {
@@ -1067,7 +1144,13 @@ client.on('messageCreate', async message => {
         db.updateSetting(message.guild.id, 'lastCount', number);
         db.updateSetting(message.guild.id, 'lastCounter', message.author.id);
         try {
-          await message.react('1565459448552620163');
+          const { zoomReaction } = require('./utils/emojis');
+          const zr = zoomReaction();
+          if (zr && zr !== '✅') {
+            await message.react(zr).catch(async () => { try { await message.react('✅'); } catch(e){} });
+          } else {
+            await message.react('✅').catch(() => {});
+          }
         } catch (error) {
           console.error('Could not react to counting message:', error);
         }
@@ -1090,7 +1173,7 @@ client.on('messageCreate', async message => {
         content: automaticReply[1].replaceAll('{user}', `${message.author}`).replaceAll('{server}', message.guild.name),
         allowedMentions: { parse: [], users: [message.author.id] }
       });
-      return; // Stop processing after auto-reply to prevent potential double-replies
+      return;
     }
 
     const prefix = settings.prefix || 'l';
@@ -1133,7 +1216,7 @@ client.on('messageCreate', async message => {
         : message.channel;
       await logEvent(message.guild, 'level', {
         title: '📈 Level up',
-        target: `${message.author} (\`${message.author.username}\`)`,
+        target: `${message.author} (\` + message.author.username + '\`)`,
         description: `Reached **level ${result.level}**.`,
         thumbnail: message.author.displayAvatarURL(),
         userId: message.author.id,

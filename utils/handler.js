@@ -47,15 +47,21 @@ async function executeCommand(command, context) {
   try {
     return await command.run(context);
   } catch (error) {
-    console.error(`Command "${command.data.name}" failed:`, error);
+    console.error(`Command "${command.data?.name || 'unknown'}" failed:`, error?.message);
+    console.error(error?.stack);
     const content = '⚠️ I could not run that command. Please check my permissions and try again.';
-    if (isSlash) {
+    if (isSlash && context.interaction) {
       if (context.interaction.deferred || context.interaction.replied) {
-        return context.interaction.followUp({ content, ephemeral: true });
+        try { return context.interaction.followUp({ content, ephemeral: true }); } catch (e) { console.error(e); }
       }
-      return context.interaction.reply({ content, ephemeral: true });
+      try { return context.interaction.reply({ content, ephemeral: true }); } catch (e) { console.error(e); }
+      return;
     }
-    return context.message.reply(content);
+    if (context.message) {
+      try { return context.message.reply(content); } catch (e) { console.error(e); }
+      return;
+    }
+    return;
   }
 }
 
