@@ -189,67 +189,112 @@ function cardSvg(first, second, score, avatars) {
 
 function renderPng(svg) {
   return new Promise((resolve, reject) => {
-    const args = [
-      '-limit', 'memory', '128MiB',
-      '-limit', 'map', '256MiB',
-      '-limit', 'time', '15',
-      '-background', '#250c35',
-      'svg:-',
-      '-strip',
-      '-define', 'png:compression-level=8',
-      'png:-'
+    const attempts = [
+      {
+        name: 'rsvg-convert',
+        cmd: 'rsvg-convert',
+        args: ['-f', 'png', '-w', String(WIDTH), '-h', String(HEIGHT)]
+      },
+      {
+        name: 'magick',
+        cmd: process.platform === 'win32' ? 'magick.exe' : 'magick',
+        args: [
+          '-background', 'none',
+          'svg:-',
+          '-strip',
+          '-define', 'png:compression-level=8',
+          'png:-'
+        ]
+      },
+      {
+        name: 'convert',
+        cmd: 'convert',
+        args: [
+          '-background', 'none',
+          'svg:-',
+          '-strip',
+          '-define', 'png:compression-level=8',
+          'png:-'
+        ]
+      }
     ];
-    const chunks = [];
-    let outputBytes = 0;
-    let stderr = '';
+
+    let index = 0;
     let renderer;
     let settled = false;
-    const timeout = setTimeout(() => renderer.kill('SIGKILL'), 20_000);
+
     const finish = (error, image) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
       if (error) reject(error);
       else resolve(image);
     };
-    const launch = (executable, allowFallback) => {
-      renderer = spawn(executable, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+    const tryNext = (previousError) => {
+      if (settled) return;
+      if (index >= attempts.length) {
+        const detail = previousError?.message ? ` (${previousError.message})` : '';
+        finish(new Error(`The ship card image renderer is not available on the bot host${detail}.`));
+        return;
+      }
+
+      const attempt = attempts[index++];
+      const chunks = [];
+      let outputBytes = 0;
+      let stderr = '';
+      let killedForSize = false;
+
+      renderer = spawn(attempt.cmd, attempt.args, { stdio: ['pipe', 'pipe', 'pipe'] });
       const current = renderer;
+      const timeout = setTimeout(() => {
+        try { current.kill('SIGKILL'); } catch {}
+      }, 20_000);
+
       current.stdout.on('data', chunk => {
         if (renderer !== current || settled) return;
         outputBytes += chunk.length;
         if (outputBytes > MAX_IMAGE_BYTES) {
-          current.kill('SIGKILL');
+          killedForSize = true;
+          try { current.kill('SIGKILL'); } catch {}
           return;
         }
         chunks.push(chunk);
       });
+
       current.stderr.on('data', chunk => {
         if (renderer === current && stderr.length < 4000) {
           stderr += chunk.toString().slice(0, 4000 - stderr.length);
         }
       });
+
       current.once('error', error => {
+        clearTimeout(timeout);
         if (renderer !== current || settled) return;
-        if (allowFallback && error.code === 'ENOENT') {
-          launch('convert', false);
-        } else if (error.code === 'ENOENT') {
-          finish(new Error('The ship card image renderer (ImageMagick) is not installed on the bot host.'));
-        } else {
-          finish(error);
+        if (error.code === 'ENOENT') {
+          tryNext(error);
+          return;
         }
+        finish(error);
       });
+
       current.once('close', code => {
+        clearTimeout(timeout);
         if (renderer !== current || settled) return;
+        if (killedForSize) {
+          finish(new Error('The ship card image is too large to render.'));
+          return;
+        }
         if (code !== 0 || !outputBytes) {
-          finish(new Error(`Could not render ship card${stderr ? `: ${stderr.trim()}` : '.'}`));
+          finish(new Error(`Could not render ship card with ${attempt.name}${stderr ? `: ${stderr.trim()}` : '.'}`));
           return;
         }
         finish(null, Buffer.concat(chunks, outputBytes));
       });
+
       current.stdin.end(svg);
     };
-    launch(process.platform === 'win32' ? 'magick.exe' : 'magick', process.platform !== 'win32');
+
+    tryNext();
   });
 }
 
