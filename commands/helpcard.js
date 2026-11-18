@@ -4,15 +4,20 @@ module.exports = {
   data: new SlashCommandBuilder().setName('helpcard').setDescription('Help as canvas card'),
   category: 'Utility',
   permissions: [],
-  async run({ interaction, client }) {
+  async run({ client, interaction, message }) {
     const { replyWithCard } = require('../canvas/send');
-    const items = Array.from(client.commands.values()).slice(0, 10).map(c => ({
-      name: `/${c.data.name}`,
-      description: c.data.description || '',
+    const target = interaction || message;
+    if (!target) return;
+
+    const c = interaction?.client ?? message?.client ?? client;
+    const commands = c?.commands ? Array.from(c.commands.values()) : [];
+    const items = commands.slice(0, 10).map(cmd => ({
+      name: `/${cmd?.data?.name || 'command'}`,
+      description: cmd?.data?.description || '',
     }));
-    await replyWithCard(interaction, 'list', {
+    await replyWithCard(target, 'list', {
       title: 'Commands',
-      items,
+      items: items.length ? items : [{ name: '/help', description: 'No commands loaded.' }],
       page: 1,
       totalPages: 1,
       iconType: 'info',

@@ -1,5 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActivityType } = require('discord.js');
-const { LOBSTER_BLUE, LOBSTER_FOOTER } = require('../utils/command-style');
+const { SlashCommandBuilder, ActivityType } = require('discord.js');
 
 const BAR_LENGTH = 16;
 
@@ -11,14 +10,14 @@ function spotifyActivity(member) {
 }
 
 function coverURL(activity) {
-  const image = activity.assets?.largeImage;
+  const image = activity?.assets?.largeImage;
   if (!image) return null;
   const id = image.startsWith('spotify:image:') ? image.slice('spotify:image:'.length) : image;
   return `https://i.scdn.co/image/${id}`;
 }
 
 function clock(milliseconds) {
-  const total = Math.max(0, Math.floor(milliseconds / 1000));
+  const total = Math.max(0, Math.floor((Number(milliseconds) || 0) / 1000));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const seconds = total % 60;
@@ -26,10 +25,12 @@ function clock(milliseconds) {
   return hours ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
 }
 
-function progressBar(elapsed, total) {
-  const ratio = total > 0 ? Math.min(1, Math.max(0, elapsed / total)) : 0;
-  const filled = Math.round(ratio * BAR_LENGTH);
-  return '▬'.repeat(filled) + '🔘' + '▬'.repeat(Math.max(0, BAR_LENGTH - filled));
+function progressText(start, end) {
+  if (!start || !end) return null;
+  const total = Math.max(1, end - start);
+  const elapsed = Math.min(total, Math.max(0, Date.now() - start));
+  const pct = Math.round((elapsed / total) * 100);
+  return `${clock(elapsed)} / ${clock(total)} (${pct}%)`;
 }
 
 module.exports = {
@@ -39,68 +40,81 @@ module.exports = {
     .addUserOption(option => option.setName('target').setDescription('Member to check').setRequired(false)),
   aliases: ['spo', 'sp'],
   category: 'Music',
-  async run({ interaction, message, isSlash, args, guild, client }) {
+  async run({ interaction, message, isSlash, args, guild, client, user: ctxUser }) {
+    const { replyWithCard } = require('../canvas/send');
+    const target = interaction || message;
+    if (!target) return;
+
+    const g = interaction?.guild ?? message?.guild ?? guild;
+    const c = interaction?.client ?? message?.client ?? client;
+    const requester = interaction?.user ?? message?.author ?? ctxUser;
+
     let user;
-    if (isSlash) {
+    if (interaction) {
       user = interaction.options.getUser('target') || interaction.user;
     } else {
-      user = message.mentions.users.first()
-        || (args[0] ? await client.users.fetch(args[0]).catch(() => null) : message.author);
+      user = message?.mentions?.users?.first?.()
+        || (args && args[0] && c?.users?.fetch ? await c.users.fetch(args[0]).catch(() => null) : null)
+        || message?.author
+        || requester;
     }
 
     if (!user) {
-      const response = '🎧 Whose music should I show?\n`l spotify [@user]`\n-# They need Spotify connected to their profile.';
-      return isSlash ? interaction.reply({ content: response, ephemeral: true }) : message.reply(response);
+      return replyWithCard(target, 'result', {
+        type: 'info',
+        title: 'Spotify',
+        description: 'Whose music should I show? Use: l spotify [@user]. They need Spotify connected and activity sharing enabled.',
+      });
     }
 
-    const member = guild.members.cache.get(user.id)
-      || await guild.members.fetch(user.id).catch(() => null);
+    const member = g?.members?.cache?.get(user.id)
+      || (g?.members?.fetch ? await g.members.fetch(user.id).catch(() => null) : null);
     const activity = spotifyActivity(member);
 
     if (!activity) {
       const activities = member?.presence?.activities || [];
-      const sharingHint = !member?.presence
-        ? '\n\n-# I cannot see any presence from this member.'
+      const hint = !member?.presence
+        ? 'I cannot see any presence from this member.'
         : activities.length === 0
-          ? '\n\n-# No activity is being shared. Turn on **Settings → Activity Privacy → Share your detected activities** and **Settings → Connections → Spotify → Display Spotify as your status**, then play from the Spotify app (not the web player).'
-          : '';
-      const embed = new EmbedBuilder()
-        .setColor(LOBSTER_BLUE)
-        .setAuthor({ name: `${user.username} · Spotify`, iconURL: user.displayAvatarURL() })
-        .setDescription(`🎧 **${member?.displayName || user.username}** is not listening to Spotify right now.${sharingHint}`)
-        .setFooter({ text: LOBSTER_FOOTER });
-      return isSlash ? interaction.reply({ embeds: [embed] }) : message.reply({ embeds: [embed] });
+          ? 'No activity is being shared. Enable Activity Privacy sharing and display Spotify as your status, then play from the Spotify app.'
+          : 'This member is not listening to Spotify right now.';
+      return replyWithCard(target, 'result', {
+        type: 'info',
+        title: 'Spotify',
+        description: `${member?.displayName || user.username} is not listening to Spotify right now. ${hint}`,
+        fields: [
+          { label: 'User', value: member?.displayName || user.username || 'Unknown' },
+          { label: 'Status', value: member?.presence ? 'Presence visible' : 'Presence hidden' },
+        ],
+      });
     }
 
-    const song = activity.details || activity.name;
+    const song = activity.details || activity.name || 'Unknown track';
     const artists = activity.state || 'Unknown artist';
     const album = activity.assets?.largeText || null;
     const start = activity.timestamps?.start ? activity.timestamps.start.getTime() : null;
     const end = activity.timestamps?.end ? activity.timestamps.end.getTime() : null;
     const trackURL = activity.syncId ? `https://open.spotify.com/track/${activity.syncId}` : null;
-
-    const embed = new EmbedBuilder()
-      .setColor(LOBSTER_BLUE)
-      .setAuthor({ name: `${member?.displayName || user.username} · Spotify`, iconURL: user.displayAvatarURL() })
-      .setTitle(`🎧 ${song}`)
-      .setDescription(`by **${artists}**`)
-      .setFooter({ text: `${LOBSTER_FOOTER}${album ? ` · ${album}` : ''}` })
-      .setTimestamp();
-
-    if (trackURL) embed.setURL(trackURL);
     const cover = coverURL(activity);
-    if (cover) embed.setThumbnail(cover);
-    if (album) embed.addFields({ name: '💿 Album', value: album, inline: true });
-    if (start && end) {
-      const elapsed = Date.now() - start;
-      embed.addFields({
-        name: '⏱️ Progress',
-        value: `${progressBar(elapsed, end - start)}\n\`${clock(elapsed)} / ${clock(end - start)}\``,
-        inline: false
-      });
-    }
-    if (trackURL) embed.addFields({ name: '🔗 Track', value: `[Open in Spotify](${trackURL})`, inline: true });
+    const progress = progressText(start, end);
 
-    return isSlash ? interaction.reply({ embeds: [embed] }) : message.reply({ embeds: [embed] });
-  }
+    const stats = [
+      { label: 'Artist', value: artists },
+      ...(album ? [{ label: 'Album', value: album }] : []),
+      ...(progress ? [{ label: 'Progress', value: progress }] : []),
+      { label: 'Listening', value: member?.displayName || user.username || 'Member' },
+    ];
+
+    return replyWithCard(target, 'profile', {
+      avatarUrl: cover || (typeof user.displayAvatarURL === 'function' ? user.displayAvatarURL({ extension: 'png', size: 512 }) : null),
+      username: song,
+      tag: artists,
+      badges: ['Spotify'],
+      level: 0,
+      xp: start && end ? Math.min(end - start, Math.max(0, Date.now() - start)) : 0,
+      xpNeeded: start && end ? Math.max(1, end - start) : 1,
+      rank: 'Now',
+      stats,
+    });
+  },
 };

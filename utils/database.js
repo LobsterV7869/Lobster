@@ -184,7 +184,9 @@ function defaults(guildId) {
     levelUpChannel: null,
     voiceChannel: null,
     voiceAutoReconnect: false,
-    lockedChannels: {}
+    lockedChannels: {},
+    blockedTags: [],
+    blockedGuildIds: []
   };
 }
 
@@ -217,7 +219,13 @@ function getSettings(guildId) {
       eventLogChannels: {
         ...defaults(guildId).eventLogChannels,
         ...database.guild_settings[guildId].eventLogChannels
-      }
+      },
+      blockedTags: Array.isArray(database.guild_settings[guildId].blockedTags)
+        ? database.guild_settings[guildId].blockedTags
+        : defaults(guildId).blockedTags,
+      blockedGuildIds: Array.isArray(database.guild_settings[guildId].blockedGuildIds)
+        ? database.guild_settings[guildId].blockedGuildIds
+        : defaults(guildId).blockedGuildIds
     };
   }
   return database.guild_settings[guildId];

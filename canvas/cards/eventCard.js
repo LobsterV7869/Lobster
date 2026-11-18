@@ -36,15 +36,16 @@ async function render(data = {}) {
   ctx.textBaseline = 'top';
   ctx.fillText(titleFit.text, b.x + 72 * theme.SCALE, b.y);
 
-  // status pill (right aligned)
-  ctx.font = font('semibold', theme.sizes.label);
+  // status pill (right aligned) - measure, then draw once
   const status = data.status || 'ACTIVE';
-  // measure to place right
-  const sp = drawStatusPill(ctx, 0, 0, status); // draw offscreen? easier measure
-  // redraw properly
-  ctx.clearRect(0,0,0,0); // no-op
-  // just place at right
-  const statusX = b.right - 140 * theme.SCALE;
+  ctx.save();
+  ctx.font = font('semibold', theme.sizes.label);
+  const statusText = String(status).toUpperCase();
+  const spx = 14 * theme.SCALE;
+  const spy = 8 * theme.SCALE;
+  const spw = ctx.measureText(statusText).width + spx * 2;
+  ctx.restore();
+  const statusX = b.right - spw;
   drawStatusPill(ctx, statusX, b.y + 8 * theme.SCALE, status);
 
   // timeline (3 columns)

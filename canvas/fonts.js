@@ -24,19 +24,20 @@ function tryRequireCanvas() {
 }
 
 const FONT_CANDIDATES = [
+  path.join(__dirname, '..', 'assets', 'fonts'),
+  path.join(process.cwd(), 'assets', 'fonts'),
+  path.join(__dirname, 'fonts'),
   // common Linux paths
   '/usr/share/fonts/truetype/inter',
   '/usr/share/fonts/inter',
   '/usr/local/share/fonts',
-  path.join(__dirname, '..', 'assets', 'fonts'),
-  path.join(__dirname, 'fonts'),
-  path.join(process.cwd(), 'assets', 'fonts'),
+  '/usr/share/fonts',
 ];
 
 const INTER_FILES = {
-  'Inter Regular': ['Inter-Regular.ttf', 'Inter_18pt-Regular.ttf', 'Inter[slnt,wght].ttf'],
-  'Inter SemiBold': ['Inter-SemiBold.ttf', 'Inter_18pt-SemiBold.ttf'],
-  'Inter Bold': ['Inter-Bold.ttf', 'Inter_18pt-Bold.ttf'],
+  'Inter Regular': ['Inter-Regular.ttf', 'Inter_400Regular.ttf', 'Inter_18pt-Regular.ttf', 'Inter[slnt,wght].ttf'],
+  'Inter SemiBold': ['Inter-SemiBold.ttf', 'Inter_600SemiBold.ttf', 'Inter_18pt-SemiBold.ttf'],
+  'Inter Bold': ['Inter-Bold.ttf', 'Inter_700Bold.ttf', 'Inter_18pt-Bold.ttf'],
 };
 
 /**

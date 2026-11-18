@@ -9,20 +9,21 @@ const {
 const { createShipCard } = require('../utils/ship-card');
 
 function compatibilityLine(score) {
-  if (score >= 90) return 'A legendary match made in the stars.';
-  if (score >= 75) return 'The stars are definitely onto something.';
-  if (score >= 50) return 'There might be a spark here.';
-  if (score >= 25) return 'A little chaotic, but that can be fun.';
-  return 'Bestie energy is still a great match.';
+  if (score >= 90) return 'Soulmates in the making — pure love energy.';
+  if (score >= 75) return 'So much chemistry, the sparks are flying.';
+  if (score >= 50) return 'A cute connection with real heart-flutter potential.';
+  if (score >= 25) return 'A playful crush with a little chaos and charm.';
+  return 'Bestie love is still a beautiful match.';
 }
 
 function shipPayload(first, second, score, image, requesterId) {
   const embed = new EmbedBuilder()
-    .setColor(0xeb459e)
-    .setAuthor({ name: 'Lobster · Ship' })
-    .setTitle('💞 Compatibility')
-    .setDescription(`**${first}**  ×  **${second}**\n${compatibilityLine(score)}\n\n*${score}% compatibility · just for fun*`)
-    .setImage('attachment://lobster-ship.png');
+    .setColor(0xff4f95)
+    .setAuthor({ name: 'Lobster · Love Match' })
+    .setTitle('💘 Love Compatibility')
+    .setDescription(`**${first}**  💞  **${second}**\n${compatibilityLine(score)}\n\n**${score}%** compatibility · just for fun`)
+    .setImage('attachment://lobster-ship.png')
+    .setFooter({ text: 'Made with love by Lobster' });
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`ship:again:${requesterId}:${first.id}:${second.id}`)

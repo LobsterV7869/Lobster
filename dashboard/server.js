@@ -250,6 +250,8 @@ function createDashboardServer(client) {
       blockBots: Boolean(settings.blockBots),
       joinRaidProtection: settings.joinRaidProtection,
       antiNuke: settings.antiNuke,
+      blockedTags: Array.isArray(settings.blockedTags) ? settings.blockedTags : [],
+      blockedGuildIds: Array.isArray(settings.blockedGuildIds) ? settings.blockedGuildIds : [],
       levelsEnabled: Boolean(settings.levelsEnabled),
       levelUpChannel: settings.levelUpChannel,
       counting: Boolean(settings.counting),
@@ -573,6 +575,29 @@ function createDashboardServer(client) {
         updated.windowSeconds = protection.windowSeconds;
       }
       updates.joinRaidProtection = updated;
+    }
+    if (Object.hasOwn(body, 'blockedTags')) {
+      if (!Array.isArray(body.blockedTags) || body.blockedTags.length > 50
+        || body.blockedTags.some(tag => typeof tag !== 'string' || !tag.trim() || tag.length > 30)) {
+        throw new Error('Blocked server tags must contain at most 50 non-empty tags of 30 characters or fewer.');
+      }
+      updates.blockedTags = [...new Set(body.blockedTags.map(tag => tag.trim().replace(/^#+/, '')).filter(Boolean).map(tag => tag.toLowerCase()))]
+        .slice(0, 50);
+    }
+    if (Object.hasOwn(body, 'blockedGuildIds')) {
+      if (!Array.isArray(body.blockedGuildIds) || body.blockedGuildIds.length > 50
+        || body.blockedGuildIds.some(id => typeof id !== 'string' || !/^\d{17,20}$/.test(id.trim()))) {
+        throw new Error('Blocked primary guild IDs must contain at most 50 valid 17-20 digit IDs.');
+      }
+      updates.blockedGuildIds = [...new Set(body.blockedGuildIds.map(id => id.trim()))].slice(0, 50);
+    }
+    if (Object.hasOwn(body, 'blockedTags') || Object.hasOwn(body, 'blockedGuildIds')) {
+      const nextBlockedTags = Object.hasOwn(body, 'blockedTags') ? (updates.blockedTags || []) : (settings.blockedTags || []);
+      const nextBlockedGuildIds = Object.hasOwn(body, 'blockedGuildIds') ? (updates.blockedGuildIds || []) : (settings.blockedGuildIds || []);
+      if ((nextBlockedTags.length || nextBlockedGuildIds.length)
+        && !guild.members.me.permissions.has(PermissionFlagsBits.KickMembers)) {
+        throw new Error('Give Lobster the Kick Members permission before enabling blocked server tag/guild protection.');
+      }
     }
     if (Object.hasOwn(body, 'automodRules')) {
       if (!body.automodRules || typeof body.automodRules !== 'object' || Array.isArray(body.automodRules)) {

@@ -1746,6 +1746,70 @@ client.on('interactionCreate', async interaction => {
 client.on('guildMemberAdd', async member => {
   const settings = db.getSettings(member.guild.id);
   if (member.id === client.user.id) return;
+
+  const blockedTags = Array.isArray(settings.blockedTags)
+    ? settings.blockedTags.map(tag => String(tag).trim().toLowerCase()).filter(Boolean)
+    : [];
+  const blockedGuildIds = new Set(
+    Array.isArray(settings.blockedGuildIds)
+      ? settings.blockedGuildIds.map(id => String(id).trim()).filter(Boolean)
+      : []
+  );
+  if (blockedTags.length || blockedGuildIds.size) {
+    const freshUser = await member.user.fetch(true).catch(() => member.user);
+    const primaryGuild = freshUser?.primaryGuild || null;
+    const tag = String(primaryGuild?.tag || '').trim().toLowerCase();
+    const identityGuildId = primaryGuild?.identityGuildId ? String(primaryGuild.identityGuildId) : null;
+    const identityEnabled = Boolean(primaryGuild?.identityEnabled);
+    const blockedByTag = identityEnabled && tag && blockedTags.includes(tag);
+    const blockedByGuild = identityGuildId && blockedGuildIds.has(identityGuildId);
+    if (blockedByTag || blockedByGuild) {
+      const reason = blockedByGuild
+        ? `Primary guild ID ${identityGuildId} is blocked by server security settings`
+        : `Primary guild tag "${primaryGuild?.tag}" is blocked by server security settings`;
+      const details = [
+        `**Reason:** Blocked server tag/guild identity`,
+        identityGuildId ? `**Guild ID:** \`${identityGuildId}\`` : null,
+        primaryGuild?.tag ? `**Tag:** ${primaryGuild.tag}` : null,
+        `**Identity enabled:** ${identityEnabled ? 'yes' : 'no'}`
+      ].filter(Boolean).join('\n');
+      if (!member.kickable) {
+        console.error(`Could not enforce blocked server tag protection for ${member.user.tag}: missing Kick Members permission or role hierarchy.`);
+        await logEvent(member.guild, 'protection', {
+          title: '🚨 Blocked server tag',
+          target: `${member} (\`${member.user.tag}\`)`,
+          description: `${details}\n\nLobster could not remove this member. Check Kick Members permission and role hierarchy.`,
+          userId: member.id,
+          bot: member.user.bot,
+          audit: false
+        }).catch(() => {});
+        return;
+      }
+      try {
+        await member.kick(reason);
+        await logEvent(member.guild, 'protection', {
+          title: '🚨 Blocked server tag',
+          target: `${member} (\`${member.user.tag}\`)`,
+          description: `${details}\n\nThe member was removed before joining.`,
+          userId: member.id,
+          bot: member.user.bot,
+          audit: false
+        });
+      } catch (error) {
+        console.error(`Could not enforce blocked server tag protection for ${member.user.tag}:`, error);
+        await logEvent(member.guild, 'protection', {
+          title: '🚨 Blocked server tag',
+          target: `${member} (\`${member.user.tag}\`)`,
+          description: `${details}\n\nLobster detected a blocked server tag/guild but failed to remove the member: ${error.message}`,
+          userId: member.id,
+          bot: member.user.bot,
+          audit: false
+        }).catch(() => {});
+      }
+      return;
+    }
+  }
+
   const tooNew = settings.minAccountAgeDays > 0
     && Date.now() - member.user.createdTimestamp < settings.minAccountAgeDays * 86400000;
   if (tooNew || (member.user.bot && settings.blockBots)) {
